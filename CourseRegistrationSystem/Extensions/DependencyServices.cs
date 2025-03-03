@@ -54,6 +54,12 @@ namespace CourseRegistration_API.Extensions
 
 			services.AddScoped<IUsersService, UsersService>();
 			services.AddScoped<IStudentsService, StudentsService>();
+			services.AddScoped<ICourseEvaluationService, CourseEvaluationService>();
+			services.AddScoped<IServiceRequestService, ServiceRequestService>();
+			services.AddScoped<IDegreeAuditService, DegreeAuditService>();
+			services.AddScoped<IMidtermEvaluationService, MidtermEvaluationService>();
+			services.AddScoped<ICourseRegistrationService, CourseRegistrationService>();
+			services.AddScoped<ICourseService, CourseService>();
 
 			return services;
 		}

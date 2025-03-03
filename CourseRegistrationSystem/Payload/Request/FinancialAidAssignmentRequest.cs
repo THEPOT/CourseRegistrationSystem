@@ -1,5 +1,8 @@
-public class FinancialAidAssignmentRequest
+namespace CourseRegistration_API.Payload.Request
 {
-    public Guid FinancialAidId { get; set; }
-    public DateOnly AwardDate { get; set; }
-} 
+    public class FinancialAidAssignmentRequest
+    {
+        public Guid FinancialAidId { get; set; }
+        public DateOnly AwardDate { get; set; }
+    }
+}

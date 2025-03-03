@@ -1,5 +1,8 @@
-public class ScholarshipAssignmentRequest
+namespace CourseRegistration_API.Payload.Request
 {
-    public Guid ScholarshipId { get; set; }
-    public DateOnly AwardDate { get; set; }
-} 
+    public class ScholarshipAssignmentRequest
+    {
+        public Guid ScholarshipId { get; set; }
+        public DateOnly AwardDate { get; set; }
+    }
+}

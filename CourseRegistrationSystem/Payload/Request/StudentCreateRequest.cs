@@ -1,10 +1,17 @@
-public class StudentCreateRequest
+namespace CourseRegistration_API.Payload.Request
 {
-    public string Email { get; set; }
-    public string FullName { get; set; }
-    public string Password { get; set; }
-    public Guid ProgramId { get; set; }
-    public DateOnly? AdmissionDate { get; set; }
-    public string AdmissionStatus { get; set; }
-    public string ImageUrl { get; set; }
-} 
+    public class StudentCreateRequest
+    {
+        public string Email { get; set; }
+        public string FullName { get; set; }
+        public string Password { get; set; }
+        public Guid ProgramId { get; set; }
+        public DateOnly? AdmissionDate { get; set; }
+        public string AdmissionStatus { get; set; }
+        public string ImageUrl { get; set; }
+
+        // Add scholarship information (optional)
+        public Guid? ScholarshipId { get; set; }
+        public DateOnly? ScholarshipAwardDate { get; set; }
+    }
+}
