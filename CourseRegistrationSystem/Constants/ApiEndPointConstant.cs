@@ -27,6 +27,5 @@
 			public const string StudentTermGPA = StudentsEndpoint + "/{id}/term/{termId}/gpa";
 			public const string FailedCourses = StudentsEndpoint + "/{id}/failed-courses";
 		}
-
 	}
 }
