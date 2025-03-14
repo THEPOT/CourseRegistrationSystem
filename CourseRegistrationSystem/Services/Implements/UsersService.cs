@@ -80,13 +80,10 @@ namespace CourseRegistration_API.Services.Implements
 		{
 			try
 			{
-
-
 				Expression<Func<User, bool>> emailFilter = p => p.Email.Equals(registerRequest.Email);
 				var existingUser = await _unitOfWork.GetRepository<User>().SingleOrDefaultAsync(predicate: emailFilter);
 				if (existingUser != null) throw new BadHttpRequestException(MessageConstant.RegisterMessage.EmailExisted);
-				Expression<Func<Role, bool>> roleFilter = r =>
-					r.RoleName.ToLower() == registerRequest.Role.ToString().ToLower();
+				Expression<Func<Role, bool>> roleFilter = r => r.RoleName.ToLower() == registerRequest.Role.ToString().ToLower();
 				var role = await _unitOfWork.GetRepository<Role>().SingleOrDefaultAsync(predicate: roleFilter);
 				if (role == null) throw new BadHttpRequestException(MessageConstant.RegisterMessage.RoleNotFound);
 
@@ -139,7 +136,17 @@ namespace CourseRegistration_API.Services.Implements
 						return null;
 				}
 				bool isSuccessful = await _unitOfWork.CommitAsync() > 0;
-				return isSuccessful ? _mapper.Map<RegisterResponse>(newUser) : null;
+				if (isSuccessful)
+				{
+					// Reload the user with role included
+					var userWithRole = await _unitOfWork.GetRepository<User>().SingleOrDefaultAsync(
+						predicate: u => u.Id == newUser.Id,
+						include: q => q.Include(u => u.Role)
+					);
+
+					return _mapper.Map<RegisterResponse>(userWithRole);
+				}
+				return null;
 			}
 			catch (Exception ex)
 			{
