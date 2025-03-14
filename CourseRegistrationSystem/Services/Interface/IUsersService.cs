@@ -9,5 +9,7 @@ namespace CourseRegistration_API.Services.Interface
 		Task<LoginResponse> Login(LoginRequest loginRequest);
 
 		Task<RegisterResponse> Register(RegisterRequest registerRequest);
+
+		Task<RefreshTokenResponse> RefreshToken(RefreshTokenRequest refreshTokenRequest);
 	}
 }

@@ -76,6 +76,74 @@ namespace CourseRegistration_API.Services.Implements
 			return loginResponse;
 		}
 
+		public async Task<RefreshTokenResponse> RefreshToken(RefreshTokenRequest refreshTokenRequest)
+		{
+			try
+			{
+				// Validate refresh token
+				var (isValid, userId, specificId) = TokenUtil.ValidateRefreshToken(refreshTokenRequest.RefreshToken);
+
+				if (!isValid)
+					return null; // Invalid token
+
+				// Get user from database
+				var user = await _unitOfWork.GetRepository<User>()
+					.SingleOrDefaultAsync(
+						predicate: u => u.Id == userId,
+						include: q => q.Include(u => u.Role)
+					);
+
+				if (user == null)
+					return null; // User not found
+
+				// Determine the role claim type based on the user's role
+				string claimType;
+				switch (EnumUtil.ParseEnum<RoleEnum>(user.Role.RoleName))
+				{
+					case RoleEnum.Student:
+						claimType = "studentId";
+						break;
+					case RoleEnum.Lecturer:
+						claimType = "lecturerId";
+						break;
+					case RoleEnum.Staff:
+						claimType = "staffId";
+						break;
+					default:
+						claimType = "userId";
+						break;
+				}
+
+				// Get specific ID based on role
+				Guid roleSpecificId = specificId;
+
+				// If needed, you could verify the specific ID exists in the database
+				// This is optional but provides an extra security check
+
+				// Create claim tuple using the specific ID from the token
+				var guidClaim = new Tuple<string, Guid>(claimType, roleSpecificId);
+
+				// Generate new tokens
+				var accessToken = JwtUtil.GenerateJwtToken(user, guidClaim);
+				var refreshToken = TokenUtil.GenerateRefreshToken(user, roleSpecificId);
+
+				// Return the response
+				return new RefreshTokenResponse
+				{
+					UserId = user.Id,
+					FullName = user.FullName,
+					Role = user.Role.RoleName,
+					AccessToken = accessToken,
+					RefreshToken = refreshToken
+				};
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error refreshing token");
+				return null;
+			}
+		}
+
 		public async Task<RegisterResponse> Register(RegisterRequest registerRequest)
 		{
 			try
@@ -155,6 +223,7 @@ namespace CourseRegistration_API.Services.Implements
 				throw; // Or handle differently
 			}
 		}
+
 
 	}
 }
