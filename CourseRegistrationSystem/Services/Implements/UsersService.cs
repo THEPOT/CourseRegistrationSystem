@@ -76,17 +76,82 @@ namespace CourseRegistration_API.Services.Implements
 			return loginResponse;
 		}
 
+		public async Task<RefreshTokenResponse> RefreshToken(RefreshTokenRequest refreshTokenRequest)
+		{
+			try
+			{
+				// Validate refresh token
+				var (isValid, userId, specificId) = TokenUtil.ValidateRefreshToken(refreshTokenRequest.RefreshToken);
+
+				if (!isValid)
+					return null; // Invalid token
+
+				// Get user from database
+				var user = await _unitOfWork.GetRepository<User>()
+					.SingleOrDefaultAsync(
+						predicate: u => u.Id == userId,
+						include: q => q.Include(u => u.Role)
+					);
+
+				if (user == null)
+					return null; // User not found
+
+				// Determine the role claim type based on the user's role
+				string claimType;
+				switch (EnumUtil.ParseEnum<RoleEnum>(user.Role.RoleName))
+				{
+					case RoleEnum.Student:
+						claimType = "studentId";
+						break;
+					case RoleEnum.Lecturer:
+						claimType = "lecturerId";
+						break;
+					case RoleEnum.Staff:
+						claimType = "staffId";
+						break;
+					default:
+						claimType = "userId";
+						break;
+				}
+
+				// Get specific ID based on role
+				Guid roleSpecificId = specificId;
+
+				// If needed, you could verify the specific ID exists in the database
+				// This is optional but provides an extra security check
+
+				// Create claim tuple using the specific ID from the token
+				var guidClaim = new Tuple<string, Guid>(claimType, roleSpecificId);
+
+				// Generate new tokens
+				var accessToken = JwtUtil.GenerateJwtToken(user, guidClaim);
+				var refreshToken = TokenUtil.GenerateRefreshToken(user, roleSpecificId);
+
+				// Return the response
+				return new RefreshTokenResponse
+				{
+					UserId = user.Id,
+					FullName = user.FullName,
+					Role = user.Role.RoleName,
+					AccessToken = accessToken,
+					RefreshToken = refreshToken
+				};
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error refreshing token");
+				return null;
+			}
+		}
+
 		public async Task<RegisterResponse> Register(RegisterRequest registerRequest)
 		{
 			try
 			{
-
-
 				Expression<Func<User, bool>> emailFilter = p => p.Email.Equals(registerRequest.Email);
 				var existingUser = await _unitOfWork.GetRepository<User>().SingleOrDefaultAsync(predicate: emailFilter);
 				if (existingUser != null) throw new BadHttpRequestException(MessageConstant.RegisterMessage.EmailExisted);
-				Expression<Func<Role, bool>> roleFilter = r =>
-					r.RoleName.ToLower() == registerRequest.Role.ToString().ToLower();
+				Expression<Func<Role, bool>> roleFilter = r => r.RoleName.ToLower() == registerRequest.Role.ToString().ToLower();
 				var role = await _unitOfWork.GetRepository<Role>().SingleOrDefaultAsync(predicate: roleFilter);
 				if (role == null) throw new BadHttpRequestException(MessageConstant.RegisterMessage.RoleNotFound);
 
@@ -139,7 +204,17 @@ namespace CourseRegistration_API.Services.Implements
 						return null;
 				}
 				bool isSuccessful = await _unitOfWork.CommitAsync() > 0;
-				return isSuccessful ? _mapper.Map<RegisterResponse>(newUser) : null;
+				if (isSuccessful)
+				{
+					// Reload the user with role included
+					var userWithRole = await _unitOfWork.GetRepository<User>().SingleOrDefaultAsync(
+						predicate: u => u.Id == newUser.Id,
+						include: q => q.Include(u => u.Role)
+					);
+
+					return _mapper.Map<RegisterResponse>(userWithRole);
+				}
+				return null;
 			}
 			catch (Exception ex)
 			{
@@ -148,6 +223,7 @@ namespace CourseRegistration_API.Services.Implements
 				throw; // Or handle differently
 			}
 		}
+
 
 	}
 }

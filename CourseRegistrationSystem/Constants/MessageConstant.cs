@@ -15,5 +15,9 @@
 			public const string RegisterFailed = "Đăng ký thất bại";
 			public const string RegisterSuccess = "Đăng ký thành công";
 		}
+		public static class RefreshTokenMessage
+		{
+			public const string RefreshTokenFailed = "Lấy lại token thất bại";
+		}
 	}
 }

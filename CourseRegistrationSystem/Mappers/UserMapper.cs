@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
+using CourseRegistration_API.Enums;
 using CourseRegistration_API.Payload.Request;
 using CourseRegistration_API.Payload.Response;
+using CourseRegistration_API.Utils;
 using CourseRegistration_Domain.Entities;
 namespace CourseRegistration_API.Mappers
 {
@@ -23,9 +25,8 @@ namespace CourseRegistration_API.Mappers
 				.ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email))
 				.ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.FullName))
 				.ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.Image))
-				.ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.RoleName));
-
+				.ForMember(dest => dest.Role, opt => opt.MapFrom(src =>
+					src.Role != null ? EnumUtil.ParseEnum<RoleEnum>(src.Role.RoleName) : RoleEnum.Student));
 		}
 	}
-	
 }

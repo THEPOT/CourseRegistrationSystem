@@ -55,5 +55,23 @@ namespace CourseRegistration_API.Controllers
 			return Ok(registerResponse);
 		}
 
+		[HttpPost(ApiEndPointConstant.Authentication.RefreshToken)]
+		[ProducesResponseType(typeof(RefreshTokenResponse), StatusCodes.Status200OK)]
+		[ProducesErrorResponseType(typeof(UnauthorizedObjectResult))]
+		public async Task<IActionResult> RefreshToken(RefreshTokenRequest refreshTokenRequest)
+		{
+			var refreshTokenResponse = await _usersService.RefreshToken(refreshTokenRequest);
+			if (refreshTokenResponse == null)
+			{
+				return Unauthorized(new ErrorResponse()
+				{
+					StatusCode = StatusCodes.Status401Unauthorized,
+					Error = MessageConstant.RefreshTokenMessage.RefreshTokenFailed,
+					TimeStamp = DateTime.Now
+				});
+			}
+			return Ok(refreshTokenResponse);
+		}
+
 	}
 }

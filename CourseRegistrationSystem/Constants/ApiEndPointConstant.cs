@@ -14,6 +14,7 @@
 			public const string AuthenticationEndpoint = ApiEndpoint + "/auth";
 			public const string Login = AuthenticationEndpoint + "/login";
 			public const string Register = AuthenticationEndpoint + "/register";
+			public const string RefreshToken = AuthenticationEndpoint + "/refresh-token";
 		}
 		public static class Students
 		{
