@@ -11,7 +11,7 @@ public partial class Student
 
     public Guid UserId { get; set; }
 
-    public Guid ProgramId { get; set; }
+    public Guid MajorId { get; set; }
 
     public DateOnly EnrollmentDate { get; set; }
 
@@ -21,9 +21,9 @@ public partial class Student
 
     public virtual ICollection<CourseEvaluation> CourseEvaluations { get; set; } = new List<CourseEvaluation>();
 
-    public virtual Program Program { get; set; } = null!;
+    public virtual ICollection<CourseRegistration> CourseRegistrations { get; set; } = new List<CourseRegistration>();
 
-    public virtual ICollection<Registration> Registrations { get; set; } = new List<Registration>();
+    public virtual Major Major { get; set; } = null!;
 
     public virtual ICollection<ServiceRequest> ServiceRequests { get; set; } = new List<ServiceRequest>();
 

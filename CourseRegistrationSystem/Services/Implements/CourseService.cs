@@ -41,7 +41,7 @@ namespace CourseRegistration_API.Services.Implements
 				.SingleOrDefaultAsync(
 					predicate: c => c.CourseCode == courseCode,
 					include: q => q
-						.Include(c => c.Faculty)
+						.Include(c => c.Department)
 						.Include(c => c.PrerequisiteCourses)
 						.Include(c => c.CorequisiteCourses)
 				);
@@ -58,7 +58,7 @@ namespace CourseRegistration_API.Services.Implements
 				.SingleOrDefaultAsync(
 					predicate: c => c.Id == courseId,
 					include: q => q
-						.Include(c => c.Faculty)
+						.Include(c => c.Department) // Changed from Faculty to Department
 						.Include(c => c.PrerequisiteCourses)
 						.Include(c => c.CorequisiteCourses)
 				);
@@ -79,10 +79,10 @@ namespace CourseRegistration_API.Services.Implements
 			var courses = await _unitOfWork.GetRepository<Course>()
 				.GetListAsync(
 					predicate: c => c.CourseCode.ToLower().Contains(keyword) ||
-								  c.CourseName.ToLower().Contains(keyword) ||
-								  c.Description.ToLower().Contains(keyword),
+								c.CourseName.ToLower().Contains(keyword) ||
+								c.Description.ToLower().Contains(keyword),
 					include: q => q
-						.Include(c => c.Faculty)
+						.Include(c => c.Department) // Changed from Faculty to Department
 						.Include(c => c.PrerequisiteCourses)
 						.Include(c => c.CorequisiteCourses)
 				);
@@ -106,8 +106,8 @@ namespace CourseRegistration_API.Services.Implements
 					throw new BadHttpRequestException($"Course with code '{request.CourseCode}' already exists");
 
 				// Check if faculty exists
-				var faculty = await _unitOfWork.GetRepository<Faculty>()
-					.SingleOrDefaultAsync(predicate: f => f.Id == request.FacultyId);
+				var faculty = await _unitOfWork.GetRepository<Department>()
+					.SingleOrDefaultAsync(predicate: f => f.Id == request.DepartmentId);
 
 				if (faculty == null)
 					throw new BadHttpRequestException("Faculty not found");
@@ -121,7 +121,7 @@ namespace CourseRegistration_API.Services.Implements
 					Credits = request.Credits,
 					Description = request.Description,
 					LearningOutcomes = request.LearningOutcomes,
-					FacultyId = request.FacultyId
+					DepartmentId = request.DepartmentId
 				};
 
 				// Insert the course first to get an ID
@@ -181,8 +181,8 @@ namespace CourseRegistration_API.Services.Implements
 					throw new BadHttpRequestException("Course not found");
 
 				// Check if faculty exists
-				var faculty = await _unitOfWork.GetRepository<Faculty>()
-					.SingleOrDefaultAsync(predicate: f => f.Id == request.FacultyId);
+				var faculty = await _unitOfWork.GetRepository<Department>()
+					.SingleOrDefaultAsync(predicate: f => f.Id == request.DepartmentId);
 
 				if (faculty == null)
 					throw new BadHttpRequestException("Faculty not found");
@@ -192,7 +192,8 @@ namespace CourseRegistration_API.Services.Implements
 				course.Credits = request.Credits;
 				course.Description = request.Description;
 				course.LearningOutcomes = request.LearningOutcomes;
-				course.FacultyId = request.FacultyId;
+				course.DepartmentId = request.DepartmentId;
+
 
 				// Clear and re-add prerequisites
 				course.PrerequisiteCourses.Clear();
@@ -238,7 +239,7 @@ namespace CourseRegistration_API.Services.Implements
 			{
 
 				// Check if course is used in any course offerings
-				var offerings = await _unitOfWork.GetRepository<CourseOffering>()
+				var offerings = await _unitOfWork.GetRepository<ClassSection>()
 					.GetListAsync(predicate: co => co.CourseId == courseId);
 				var hasOfferings = offerings.Any();
 
@@ -272,11 +273,11 @@ namespace CourseRegistration_API.Services.Implements
 				// Delete syllabi
 				foreach (var syllabus in course.CourseSyllabi.ToList())
 				{
-					 _unitOfWork.GetRepository<CourseSyllabus>().DeleteAsync(syllabus);
+					_unitOfWork.GetRepository<CourseSyllabus>().DeleteAsync(syllabus);
 				}
 
 				// Delete the course
-				 _unitOfWork.GetRepository<Course>().DeleteAsync(course);
+				_unitOfWork.GetRepository<Course>().DeleteAsync(course);
 				await _unitOfWork.CommitAsync();
 
 				return true;
@@ -403,8 +404,8 @@ namespace CourseRegistration_API.Services.Implements
 				Credits = course.Credits,
 				Description = course.Description,
 				LearningOutcomes = course.LearningOutcomes,
-				FacultyId = course.FacultyId,
-				FacultyName = course.Faculty?.FacultyName,
+				DepartmentId = course.DepartmentId, 
+				DepartmentName = course.Department?.DepartmentName,
 				Prerequisites = course.PrerequisiteCourses?.Select(c => new CourseBasicInfo
 				{
 					Id = c.Id,

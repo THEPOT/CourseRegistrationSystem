@@ -9,7 +9,7 @@ public partial class StudentTuition
 
     public Guid StudentId { get; set; }
 
-    public Guid TermId { get; set; }
+    public Guid SemesterId { get; set; }
 
     public Guid TuitionPolicyId { get; set; }
 
@@ -27,9 +27,9 @@ public partial class StudentTuition
 
     public string? Notes { get; set; }
 
-    public virtual Student Student { get; set; } = null!;
+    public virtual Semester Semester { get; set; } = null!;
 
-    public virtual Term Term { get; set; } = null!;
+    public virtual Student Student { get; set; } = null!;
 
     public virtual TuitionPolicy TuitionPolicy { get; set; } = null!;
 }

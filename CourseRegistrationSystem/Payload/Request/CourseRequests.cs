@@ -7,7 +7,7 @@
 		public int Credits { get; set; }
 		public string Description { get; set; }
 		public string LearningOutcomes { get; set; }
-		public Guid FacultyId { get; set; }
+		public Guid DepartmentId { get; set; }
 		public List<Guid> PrerequisiteCourseIds { get; set; } = new List<Guid>();
 		public List<Guid> CorequisiteCourseIds { get; set; } = new List<Guid>();
 	}
@@ -18,7 +18,7 @@
 		public int Credits { get; set; }
 		public string Description { get; set; }
 		public string LearningOutcomes { get; set; }
-		public Guid FacultyId { get; set; }
+		public Guid DepartmentId { get; set; }
 		public List<Guid> PrerequisiteCourseIds { get; set; } = new List<Guid>();
 		public List<Guid> CorequisiteCourseIds { get; set; } = new List<Guid>();
 	}

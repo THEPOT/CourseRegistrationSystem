@@ -2,7 +2,7 @@
 {
 	public class MidtermEvaluationCreateRequest
 	{
-		public Guid RegistrationId { get; set; }
+		public Guid CourseRegistrationId { get; set; }
 		public string Status { get; set; } // Good, Satisfactory, At Risk, Failing, etc.
 		public string Recommendation { get; set; }
 	}

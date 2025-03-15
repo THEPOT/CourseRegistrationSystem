@@ -17,12 +17,12 @@ namespace CourseRegistration_API.Services.Implements
 		{
 		}
 
-		public async Task<List<StudentForEvaluationResponse>> GetStudentsForEvaluation(Guid courseOfferingId)
+		public async Task<List<StudentForEvaluationResponse>> GetStudentsForEvaluation(Guid ClassSectionId)
 		{
 			// Get all registrations for the course offering
-			var registrations = await _unitOfWork.GetRepository<Registration>()
+			var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
 				.GetListAsync(
-					predicate: r => r.CourseOfferingId == courseOfferingId,
+					predicate: r => r.ClassSectionId == ClassSectionId,
 					include: q => q
 						.Include(r => r.Student)
 							.ThenInclude(s => s.User)
@@ -40,24 +40,24 @@ namespace CourseRegistration_API.Services.Implements
 			}).ToList();
 		}
 
-		public async Task<MidtermEvaluationSummaryResponse> GetMidtermEvaluationSummary(Guid courseOfferingId)
+		public async Task<MidtermEvaluationSummaryResponse> GetMidtermEvaluationSummary(Guid ClassSectionId)
 		{
 			// Get the course offering with details
-			var courseOffering = await _unitOfWork.GetRepository<CourseOffering>()
+			var ClassSection = await _unitOfWork.GetRepository<ClassSection>()
 				.SingleOrDefaultAsync(
-					predicate: co => co.Id == courseOfferingId,
+					predicate: co => co.Id == ClassSectionId,
 					include: q => q
 						.Include(co => co.Course)
-						.Include(co => co.Term)
+						.Include(co => co.Semester)
 				);
 
-			if (courseOffering == null)
+			if (ClassSection == null)
 				throw new BadHttpRequestException("Course offering not found");
 
 			// Get all registrations with midterm evaluations
-			var registrations = await _unitOfWork.GetRepository<Registration>()
+			var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
 				.GetListAsync(
-					predicate: r => r.CourseOfferingId == courseOfferingId,
+					predicate: r => r.ClassSectionId == ClassSectionId,
 					include: q => q
 						.Include(r => r.Student)
 							.ThenInclude(s => s.User)
@@ -66,10 +66,10 @@ namespace CourseRegistration_API.Services.Implements
 
 			var response = new MidtermEvaluationSummaryResponse
 			{
-				CourseOfferingId = courseOffering.Id,
-				CourseCode = courseOffering.Course.CourseCode,
-				CourseName = courseOffering.Course.CourseName,
-				TermName = courseOffering.Term.TermName,
+				ClassSectionId = ClassSection.Id,
+				CourseCode = ClassSection.Course.CourseCode,
+				CourseName = ClassSection.Course.CourseName,
+				TermName = ClassSection.Semester.SemesterName,
 				StudentEvaluations = registrations
 					.Where(r => r.MidtermEvaluations.Any())
 					.Select(r => new StudentEvaluationDetail
@@ -92,9 +92,9 @@ namespace CourseRegistration_API.Services.Implements
 
 
 				// Get the registration
-				var registration = await _unitOfWork.GetRepository<Registration>()
+				var registration = await _unitOfWork.GetRepository<CourseRegistration>()
 					.SingleOrDefaultAsync(
-						predicate: r => r.Id == request.RegistrationId,
+						predicate: r => r.Id == request.CourseRegistrationId,
 						include: q => q.Include(r => r.MidtermEvaluations)
 					);
 
@@ -109,7 +109,7 @@ namespace CourseRegistration_API.Services.Implements
 				var evaluation = new MidtermEvaluation
 				{
 					Id = Guid.NewGuid(),
-					RegistrationId = request.RegistrationId,
+					CourseRegistrationId = request.CourseRegistrationId,
 					Status = request.Status,
 					Recommendation = request.Recommendation
 				};
@@ -135,9 +135,9 @@ namespace CourseRegistration_API.Services.Implements
 
 
 				// Get all registrations for the course offering
-				var registrations = await _unitOfWork.GetRepository<Registration>()
+				var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
 					.GetListAsync(
-						predicate: r => r.CourseOfferingId == request.CourseOfferingId,
+						predicate: r => r.ClassSectionId == request.CourseOfferingId,
 						include: q => q.Include(r => r.MidtermEvaluations)
 					);
 
@@ -163,7 +163,7 @@ namespace CourseRegistration_API.Services.Implements
 						var evaluation = new MidtermEvaluation
 						{
 							Id = Guid.NewGuid(),
-							RegistrationId = registration.Id,
+							CourseRegistrationId = registration.Id,
 							Status = evalItem.Status,
 							Recommendation = evalItem.Recommendation
 						};

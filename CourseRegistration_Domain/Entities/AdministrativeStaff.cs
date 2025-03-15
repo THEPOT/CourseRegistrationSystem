@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace CourseRegistration_Domain.Entities;
 
-public partial class Staff
+public partial class AdministrativeStaff
 {
     public Guid Id { get; set; }
 

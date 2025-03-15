@@ -15,7 +15,7 @@ namespace CourseRegistration_API.Payload.Response
     {
         public string Mssv { get; set; }
         public string StudentName { get; set; }
-        public string ProgramName { get; set; }
+        public string MajorName { get; set; }
         public List<TermGrades> Terms { get; set; } = new List<TermGrades>();
         public decimal CumulativeGPA { get; set; }
         public int TotalCredits { get; set; }

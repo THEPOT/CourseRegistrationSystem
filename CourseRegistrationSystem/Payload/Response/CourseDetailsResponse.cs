@@ -8,8 +8,8 @@
 		public int Credits { get; set; }
 		public string Description { get; set; }
 		public string LearningOutcomes { get; set; }
-		public Guid FacultyId { get; set; }
-		public string FacultyName { get; set; }
+		public Guid DepartmentId { get; set; }
+		public string DepartmentName { get; set; }
 		public List<CourseBasicInfo> Prerequisites { get; set; } = new List<CourseBasicInfo>();
 		public List<CourseBasicInfo> Corequisites { get; set; } = new List<CourseBasicInfo>();
 	}

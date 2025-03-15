@@ -28,7 +28,7 @@ namespace CourseRegistration_API.Services.Implements
 				.SingleOrDefaultAsync(
 					predicate: s => s.Id == id,
 					include: q => q.Include(s => s.User)
-							  .Include(s => s.Program)
+							  .Include(s => s.Major)
 				);
 
 			if (student == null)
@@ -40,7 +40,7 @@ namespace CourseRegistration_API.Services.Implements
 				Mssv = student.Mssv,
 				FullName = student.User.FullName,
 				Email = student.User.Email,
-				ProgramName = student.Program.ProgramName,
+				MajorName = student.Major.MajorName,
 				EnrollmentDate = student.EnrollmentDate,
 				AdmissionDate = student.AdmissionDate,
 				AdmissionStatus = student.AdmissionStatus,
@@ -53,7 +53,7 @@ namespace CourseRegistration_API.Services.Implements
 			var students = await _unitOfWork.GetRepository<Student>()
 				.GetListAsync(
 					include: q => q.Include(s => s.User)
-							  .Include(s => s.Program)
+							  .Include(s => s.Major)
 				);
 
 			return students.Select(student => new StudentInfoResponse
@@ -62,7 +62,7 @@ namespace CourseRegistration_API.Services.Implements
 				Mssv = student.Mssv,
 				FullName = student.User.FullName,
 				Email = student.User.Email,
-				ProgramName = student.Program.ProgramName,
+				MajorName = student.Major.MajorName,
 				EnrollmentDate = student.EnrollmentDate,
 				AdmissionDate = student.AdmissionDate,
 				AdmissionStatus = student.AdmissionStatus,
@@ -141,9 +141,9 @@ namespace CourseRegistration_API.Services.Implements
 				.SingleOrDefaultAsync(
 					predicate: s => s.Id == studentId,
 					include: q => q
-						.Include(s => s.Program)
-							.ThenInclude(p => p.Faculty)
-						.Include(s => s.Program)
+						.Include(s => s.Major)
+							.ThenInclude(p => p.Department)
+						.Include(s => s.Major)
 							.ThenInclude(p => p.Courses)
 				);
 
@@ -152,11 +152,10 @@ namespace CourseRegistration_API.Services.Implements
 
 			return new StudentProgramResponse
 			{
-				ProgramId = student.Program.Id,
-				ProgramName = student.Program.ProgramName,
-				RequiredCredits = student.Program.RequiredCredits,
-				FacultyName = student.Program.Faculty.FacultyName,
-				Courses = student.Program.Courses.Select(c => new CourseInfo
+				ProgramId = student.Major.Id,
+				MajorName = student.Major.MajorName,
+				RequiredCredits = student.Major.RequiredCredits,
+				Courses = student.Major.Courses.Select(c => new CourseInfo
 				{
 					CourseId = c.Id,
 					CourseCode = c.CourseCode,
@@ -174,30 +173,30 @@ namespace CourseRegistration_API.Services.Implements
 					predicate: s => s.Id == studentId,
 					include: q => q
 						.Include(s => s.User)
-						.Include(s => s.Program)
-						.Include(s => s.Registrations)
-							.ThenInclude(r => r.CourseOffering)
+						.Include(s => s.Major)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
 							.ThenInclude(co => co.Course)
-						.Include(s => s.Registrations)
-							.ThenInclude(r => r.CourseOffering)
-							.ThenInclude(co => co.Term)
-						.Include(s => s.Registrations)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
+							.ThenInclude(co => co.Semester)
+						.Include(s => s.CourseRegistrations)
 							.ThenInclude(r => r.Grades)
 				);
 
 			if (student == null)
 				return null;
 
-			var courseGrades = student.Registrations
+			var courseGrades = student.CourseRegistrations
 				.Where(r => r.Grades.Any())
 				.Select(r => new CourseGrade
 				{
-					CourseCode = r.CourseOffering.Course.CourseCode,
-					CourseName = r.CourseOffering.Course.CourseName,
-					Credits = r.CourseOffering.Course.Credits,
+					CourseCode = r.ClassSection.Course.CourseCode,
+					CourseName = r.ClassSection.Course.CourseName,
+					Credits = r.ClassSection.Course.Credits,
 					Grade = r.Grades.FirstOrDefault()?.QualityPoints,
 					GradeValue = r.Grades.FirstOrDefault()?.GradeValue,
-					Semester = r.CourseOffering.Term.TermName,
+					Semester = r.ClassSection.Semester.SemesterName,
 					IsPassed = r.Grades.Any(g => g.QualityPoints >= 1.0m) // Consider 1.0 (D) as passing
 				}).ToList();
 
@@ -234,7 +233,7 @@ namespace CourseRegistration_API.Services.Implements
 			{
 				Mssv = student.Mssv,
 				StudentName = student.User.FullName,
-				ProgramName = student.Program.ProgramName,
+				MajorName = student.Major.MajorName,
 				Terms = coursesByTerm,
 				CourseGrades = courseGrades, // Keep for backward compatibility
 				CumulativeGPA = Math.Round(cumulativeGPA, 2),
@@ -247,49 +246,49 @@ namespace CourseRegistration_API.Services.Implements
 		{
 			var termGrades = await _unitOfWork.GetRepository<Grade>()
 				.GetListAsync(
-					predicate: g => g.Registration.StudentId == studentId &&
-									g.Registration.CourseOffering.TermId == termId,
+					predicate: g => g.CourseRegistration.StudentId == studentId &&
+									g.CourseRegistration.ClassSection.SemesterId == termId,
 					include: q => q
-						.Include(g => g.Registration)
-						.ThenInclude(r => r.CourseOffering)
+						.Include(g => g.CourseRegistration)
+						.ThenInclude(r => r.ClassSection)
 						.ThenInclude(co => co.Course)
 				);
 
 			if (!termGrades.Any())
 				return 0;
 
-			var totalCredits = termGrades.Sum(g => g.Registration.CourseOffering.Course.Credits);
+			var totalCredits = termGrades.Sum(g => g.CourseRegistration.ClassSection.Course.Credits);
 			if (totalCredits == 0)
 				return 0;
 
 			var weightedGPA = termGrades.Sum(g =>
-				g.QualityPoints * g.Registration.CourseOffering.Course.Credits);
+				g.QualityPoints * g.CourseRegistration.ClassSection.Course.Credits);
 
 			return Math.Round(weightedGPA / totalCredits, 2);
 		}
 
 		public async Task<List<CourseGrade>> GetStudentFailedCourses(Guid studentId)
 		{
-			var failedRegistrations = await _unitOfWork.GetRepository<Registration>()
+			var failedRegistrations = await _unitOfWork.GetRepository<CourseRegistration>()
 				.GetListAsync(
 					predicate: r => r.StudentId == studentId &&
 								   r.Grades.Any(g => g.QualityPoints < 1.0m),
 					include: q => q
-						.Include(r => r.CourseOffering)
+						.Include(r => r.ClassSection)
 						.ThenInclude(co => co.Course)
-						.Include(r => r.CourseOffering)
-						.ThenInclude(co => co.Term)
+						.Include(r => r.ClassSection)
+						.ThenInclude(co => co.Semester)
 						.Include(r => r.Grades)
 				);
 
 			return failedRegistrations.Select(r => new CourseGrade
 			{
-				CourseCode = r.CourseOffering.Course.CourseCode,
-				CourseName = r.CourseOffering.Course.CourseName,
-				Credits = r.CourseOffering.Course.Credits,
+				CourseCode = r.ClassSection.Course.CourseCode,
+				CourseName = r.ClassSection.Course.CourseName,
+				Credits = r.ClassSection.Course.Credits,
 				Grade = r.Grades.FirstOrDefault()?.QualityPoints,
 				GradeValue = r.Grades.FirstOrDefault()?.GradeValue,
-				Semester = r.CourseOffering.Term.TermName,
+				Semester = r.ClassSection.Semester.SemesterName,
 				IsPassed = false
 			}).ToList();
 		}
@@ -301,11 +300,11 @@ namespace CourseRegistration_API.Services.Implements
 				.GetListAsync(
 					include: q => q
 						.Include(s => s.User)
-						.Include(s => s.Program)
-						.Include(s => s.Registrations)
+						.Include(s => s.Major)
+						.Include(s => s.CourseRegistrations)
 							.ThenInclude(r => r.Grades)
-						.Include(s => s.Registrations)
-							.ThenInclude(r => r.CourseOffering)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
 							.ThenInclude(co => co.Course)
 				);
 
@@ -316,9 +315,9 @@ namespace CourseRegistration_API.Services.Implements
 				var gradePoints = 0m;
 				var totalCredits = 0;
 
-				foreach (var registration in student.Registrations.Where(r => r.Grades.Any()))
+				foreach (var registration in student.CourseRegistrations.Where(r => r.Grades.Any()))
 				{
-					var credits = registration.CourseOffering.Course.Credits;
+					var credits = registration.ClassSection.Course.Credits;
 					var grade = registration.Grades.FirstOrDefault()?.QualityPoints ?? 0;
 
 					gradePoints += credits * grade;
@@ -335,7 +334,7 @@ namespace CourseRegistration_API.Services.Implements
 						StudentId = student.Id,
 						Mssv = student.Mssv,
 						StudentName = student.User.FullName,
-						ProgramName = student.Program.ProgramName,
+						ProgramName = student.Major.MajorName,
 						GPA = Math.Round(gpa, 2),
 						TotalCredits = totalCredits
 					});
@@ -353,7 +352,7 @@ namespace CourseRegistration_API.Services.Implements
 					predicate: s => s.Id == studentId,
 					include: q => q
 						.Include(s => s.User)
-						.Include(s => s.Program)
+						.Include(s => s.Major)
 				);
 
 			if (student == null)
@@ -365,7 +364,7 @@ namespace CourseRegistration_API.Services.Implements
 					predicate: st => st.StudentId == studentId,
 					include: q => q
 						.Include(st => st.TuitionPolicy)
-						.Include(st => st.Term)
+						.Include(st => st.Semester)
 				);
 
 			var tuitions = studentTuitions.Select(st => new TuitionInfo
@@ -376,7 +375,7 @@ namespace CourseRegistration_API.Services.Implements
 				Amount = st.TotalAmount,
 				EffectiveDate = st.TuitionPolicy.EffectiveDate,
 				ExpirationDate = st.TuitionPolicy.ExpirationDate,
-				Semester = st.Term.TermName,
+				Semester = st.Semester.SemesterName,
 				AmountPaid = st.AmountPaid,
 				DiscountAmount = st.DiscountAmount ?? 0,
 				PaymentStatus = st.PaymentStatus,
@@ -427,9 +426,9 @@ namespace CourseRegistration_API.Services.Implements
 				.GetListAsync(
 					include: q => q
 						.Include(s => s.User)
-						.Include(s => s.Program)
-							.ThenInclude(p => p.Faculty)
-						.Include(s => s.Program)
+						.Include(s => s.Major)
+							.ThenInclude(p => p.Department)
+						.Include(s => s.Major)
 							.ThenInclude(p => p.Courses)
 				);
 
@@ -437,8 +436,8 @@ namespace CourseRegistration_API.Services.Implements
 			{
 				Mssv = student.Mssv,
 				StudentName = student.User.FullName,
-				ProgramName = student.Program.ProgramName,
-				Courses = student.Program.Courses.Select(c => new CourseInfo
+				ProgramName = student.Major.MajorName,
+				Courses = student.Major.Courses.Select(c => new CourseInfo
 				{
 					CourseId = c.Id,
 					CourseCode = c.CourseCode,
@@ -455,29 +454,29 @@ namespace CourseRegistration_API.Services.Implements
 				.GetListAsync(
 					include: q => q
 						.Include(s => s.User)
-						.Include(s => s.Program)
-						.Include(s => s.Registrations)
-							.ThenInclude(r => r.CourseOffering)
+						.Include(s => s.Major)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
 							.ThenInclude(co => co.Course)
-						.Include(s => s.Registrations)
-							.ThenInclude(r => r.CourseOffering)
-							.ThenInclude(co => co.Term)
-						.Include(s => s.Registrations)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
+							.ThenInclude(co => co.Semester)
+						.Include(s => s.CourseRegistrations)
 							.ThenInclude(r => r.Grades)
 				);
 
 			return students.Select(student =>
 			{
-				var courseGrades = student.Registrations
+				var courseGrades = student.CourseRegistrations
 					.Where(r => r.Grades.Any())
 					.Select(r => new CourseGrade
 					{
-						CourseCode = r.CourseOffering.Course.CourseCode,
-						CourseName = r.CourseOffering.Course.CourseName,
-						Credits = r.CourseOffering.Course.Credits,
+						CourseCode = r.ClassSection.Course.CourseCode,
+						CourseName = r.ClassSection.Course.CourseName,
+						Credits = r.ClassSection.Course.Credits,
 						Grade = r.Grades.FirstOrDefault()?.QualityPoints,
 						GradeValue = r.Grades.FirstOrDefault()?.GradeValue,
-						Semester = r.CourseOffering.Term.TermName,
+						Semester = r.ClassSection.Semester.SemesterName,
 						IsPassed = r.Grades.Any(g => g.QualityPoints >= 1.0m) // Consider 1.0 (D) as passing
 					}).ToList();
 
@@ -514,7 +513,7 @@ namespace CourseRegistration_API.Services.Implements
 				{
 					Mssv = student.Mssv,
 					StudentName = student.User.FullName,
-					ProgramName = student.Program.ProgramName,
+					MajorName = student.Major.MajorName,
 					Terms = coursesByTerm,
 					CourseGrades = courseGrades, // Keep for backward compatibility
 					CumulativeGPA = Math.Round(cumulativeGPA, 2),
@@ -532,7 +531,7 @@ namespace CourseRegistration_API.Services.Implements
 					include: q => q
 						.Include(st => st.Student)
 							.ThenInclude(s => s.User)
-						.Include(st => st.Term)
+						.Include(st => st.Semester)
 						.Include(st => st.TuitionPolicy)
 				);
 
@@ -551,7 +550,7 @@ namespace CourseRegistration_API.Services.Implements
 						Amount = st.TotalAmount,
 						EffectiveDate = st.TuitionPolicy.EffectiveDate,
 						ExpirationDate = st.TuitionPolicy.ExpirationDate,
-						Semester = st.Term.TermName,
+						Semester = st.Semester.SemesterName,
 						AmountPaid = st.AmountPaid,
 						DiscountAmount = st.DiscountAmount ?? 0,
 						PaymentStatus = st.PaymentStatus,
@@ -595,8 +594,8 @@ namespace CourseRegistration_API.Services.Implements
 				if (role == null)
 					throw new BadHttpRequestException("Student role not found");
 
-				var program = await _unitOfWork.GetRepository<Program>()
-					.SingleOrDefaultAsync(predicate: p => p.Id == request.ProgramId);
+				var program = await _unitOfWork.GetRepository<Major>()
+					.SingleOrDefaultAsync(predicate: p => p.Id == request.MajorId);
 
 				if (program == null)
 					throw new BadHttpRequestException("Program not found");
@@ -617,7 +616,7 @@ namespace CourseRegistration_API.Services.Implements
 				{
 					Id = Guid.NewGuid(),
 					UserId = newUser.Id,
-					ProgramId = request.ProgramId,
+					MajorId = request.MajorId,
 					Mssv = MSSVGeneration.GenerateStudentId(),
 					EnrollmentDate = DateOnly.FromDateTime(DateTime.Now),
 					AdmissionDate = request.AdmissionDate,
@@ -655,7 +654,7 @@ namespace CourseRegistration_API.Services.Implements
 					Mssv = newStudent.Mssv,
 					FullName = newUser.FullName,
 					Email = newUser.Email,
-					ProgramName = program.ProgramName,
+					MajorName = program.MajorName,
 					EnrollmentDate = newStudent.EnrollmentDate,
 					AdmissionDate = newStudent.AdmissionDate,
 					AdmissionStatus = newStudent.AdmissionStatus,
@@ -678,7 +677,7 @@ namespace CourseRegistration_API.Services.Implements
 					.SingleOrDefaultAsync(
 						predicate: s => s.Id == studentId,
 						include: q => q.Include(s => s.User)
-								   .Include(s => s.Program)
+								   .Include(s => s.Major)
 					);
 
 				if (student == null)
@@ -719,16 +718,16 @@ namespace CourseRegistration_API.Services.Implements
 				if (request.EnrollmentDate.HasValue)
 					student.EnrollmentDate = request.EnrollmentDate.Value;
 
-				if (request.ProgramId.HasValue && request.ProgramId != student.ProgramId)
+				if (request.MajorId.HasValue && request.MajorId != student.MajorId)
 				{
-					var program = await _unitOfWork.GetRepository<Program>()
-						.SingleOrDefaultAsync(predicate: p => p.Id == request.ProgramId);
+					var program = await _unitOfWork.GetRepository<Major>()
+						.SingleOrDefaultAsync(predicate: p => p.Id == request.MajorId);
 
 					if (program == null)
 						throw new BadHttpRequestException("Program not found");
 
-					student.ProgramId = request.ProgramId.Value;
-					student.Program = program;
+					student.MajorId = request.MajorId.Value;
+					student.Major = program;
 				}
 
 				if (request.AdmissionDate.HasValue)
@@ -745,7 +744,7 @@ namespace CourseRegistration_API.Services.Implements
 					Mssv = student.Mssv,
 					FullName = student.User.FullName,
 					Email = student.User.Email,
-					ProgramName = student.Program.ProgramName,
+					MajorName = student.Major.MajorName,
 					EnrollmentDate = student.EnrollmentDate,
 					AdmissionDate = student.AdmissionDate,
 					AdmissionStatus = student.AdmissionStatus,
@@ -839,10 +838,6 @@ namespace CourseRegistration_API.Services.Implements
 			return await GetStudentFinancialInfo(studentId);
 		}
 
-
-
-
-
 		public async Task<StudentInfoResponse> UpdateStudentProgram(Guid studentId, Guid programId)
 		{
 			var student = await _unitOfWork.GetRepository<Student>()
@@ -854,13 +849,13 @@ namespace CourseRegistration_API.Services.Implements
 			if (student == null)
 				return null;
 
-			var program = await _unitOfWork.GetRepository<Program>()
+			var program = await _unitOfWork.GetRepository<Major>()
 				.SingleOrDefaultAsync(predicate: p => p.Id == programId);
 
 			if (program == null)
 				throw new BadHttpRequestException("Program not found");
 
-			student.ProgramId = programId;
+			student.MajorId = programId;
 			await _unitOfWork.CommitAsync();
 
 			return new StudentInfoResponse
@@ -869,7 +864,7 @@ namespace CourseRegistration_API.Services.Implements
 				Mssv = student.Mssv,
 				FullName = student.User.FullName,
 				Email = student.User.Email,
-				ProgramName = program.ProgramName,
+				MajorName = program.MajorName,
 				EnrollmentDate = student.EnrollmentDate,
 				ImageUrl = student.User.Image
 			};
@@ -892,8 +887,8 @@ namespace CourseRegistration_API.Services.Implements
 					throw new BadHttpRequestException("Tuition policy not found");
 
 				// Get term from semester name
-				var term = await _unitOfWork.GetRepository<Term>()
-					.SingleOrDefaultAsync(predicate: t => t.TermName == request.Semester);
+				var term = await _unitOfWork.GetRepository<Semester>()
+					.SingleOrDefaultAsync(predicate: t => t.SemesterName == request.Semester);
 
 				if (term == null)
 					throw new BadHttpRequestException("Term not found");
@@ -903,15 +898,15 @@ namespace CourseRegistration_API.Services.Implements
 
 				var newTuition = new StudentTuition
 				{
-					Id = Guid.NewGuid(), // Generate a new ID
+					Id = Guid.NewGuid(),
 					StudentId = studentId,
-					TermId = term.Id,
+					SemesterId = term.Id,  // Change from Semester to SemesterId
 					TuitionPolicyId = request.TuitionPolicyId,
 					TotalAmount = tuitionPolicy.Amount,
-					AmountPaid = 0, // Initially unpaid
-					PaymentStatus = "Unpaid", // Always start as unpaid as per the SQL
+					AmountPaid = 0,
+					PaymentStatus = "Unpaid",
 					PaymentDueDate = paymentDueDate,
-					PaymentDate = null // No payment date initially
+					PaymentDate = null
 				};
 
 				await _unitOfWork.GetRepository<StudentTuition>().InsertAsync(newTuition);
@@ -954,13 +949,13 @@ namespace CourseRegistration_API.Services.Implements
 				// Get term from semester name
 				if (!string.IsNullOrEmpty(request.Semester))
 				{
-					var term = await _unitOfWork.GetRepository<Term>()
-						.SingleOrDefaultAsync(predicate: t => t.TermName == request.Semester);
+					var term = await _unitOfWork.GetRepository<Semester>()
+						.SingleOrDefaultAsync(predicate: t => t.SemesterName == request.Semester);
 
 					if (term == null)
 						throw new BadHttpRequestException("Term not found");
 
-					studentTuition.TermId = term.Id;
+					studentTuition.SemesterId = term.Id;
 				}
 
 				// Update payment due date if provided
@@ -1041,11 +1036,11 @@ namespace CourseRegistration_API.Services.Implements
 					return null;
 
 				// Get program with courses
-				var program = await _unitOfWork.GetRepository<Program>()
+				var program = await _unitOfWork.GetRepository<Major>()
 					.SingleOrDefaultAsync(
 						predicate: p => p.Id == request.ProgramId,
 						include: q => q
-							.Include(p => p.Faculty)
+							.Include(p => p.Department)
 							.Include(p => p.Courses)
 					);
 
@@ -1053,11 +1048,11 @@ namespace CourseRegistration_API.Services.Implements
 					throw new BadHttpRequestException("Program not found");
 
 				// Update student program
-				student.ProgramId = program.Id;
+				student.MajorId = program.Id;
 
 				// Get term for enrollment
-				var term = await _unitOfWork.GetRepository<Term>()
-					.SingleOrDefaultAsync(predicate: t => t.TermName == request.EnrollmentSemester);
+				var term = await _unitOfWork.GetRepository<Semester>()
+					.SingleOrDefaultAsync(predicate: t => t.SemesterName == request.EnrollmentSemester);
 
 				if (term == null)
 					throw new BadHttpRequestException("Term not found");
@@ -1071,9 +1066,9 @@ namespace CourseRegistration_API.Services.Implements
 					throw new BadHttpRequestException("No valid courses selected for enrollment");
 
 				// Get course offerings for the term
-				var courseOfferings = await _unitOfWork.GetRepository<CourseOffering>()
+				var courseOfferings = await _unitOfWork.GetRepository<ClassSection>()
 					.GetListAsync(
-						predicate: co => co.TermId == term.Id &&
+						predicate: co => co.SemesterId == term.Id &&
 										coursesToEnroll.Select(c => c.Id).Contains(co.CourseId)
 					);
 
@@ -1081,24 +1076,24 @@ namespace CourseRegistration_API.Services.Implements
 				foreach (var offering in courseOfferings)
 				{
 					// Check if registration already exists
-					var existingRegistration = await _unitOfWork.GetRepository<Registration>()
+					var existingRegistration = await _unitOfWork.GetRepository<CourseRegistration>()
 						.SingleOrDefaultAsync(
 							predicate: r => r.StudentId == studentId &&
-											r.CourseOfferingId == offering.Id
+											r.ClassSectionId == offering.Id
 						);
 
 					if (existingRegistration == null)
 					{
-						var registration = new Registration
+						var registration = new CourseRegistration
 						{
 							Id = Guid.NewGuid(),
 							StudentId = studentId,
-							CourseOfferingId = offering.Id,
+							ClassSectionId = offering.Id,
 							RegistrationDate = DateTime.Now,
 							Status = "Registered"
 						};
 
-						await _unitOfWork.GetRepository<Registration>().InsertAsync(registration);
+						await _unitOfWork.GetRepository<CourseRegistration>().InsertAsync(registration);
 					}
 				}
 
@@ -1109,9 +1104,9 @@ namespace CourseRegistration_API.Services.Implements
 				return new StudentProgramResponse
 				{
 					ProgramId = program.Id,
-					ProgramName = program.ProgramName,
+					MajorName = program.MajorName,
 					RequiredCredits = program.RequiredCredits,
-					FacultyName = program.Faculty.FacultyName,
+					DepartmentName = program.Department.DepartmentName,
 					Courses = coursesToEnroll.Select(c => new CourseInfo
 					{
 						CourseId = c.Id,
@@ -1134,24 +1129,23 @@ namespace CourseRegistration_API.Services.Implements
 		{
 			try
 			{
-
 				var student = await _unitOfWork.GetRepository<Student>()
 					.SingleOrDefaultAsync(
 						predicate: s => s.Id == studentId,
 						include: q => q
 							.Include(s => s.User)
-							.Include(s => s.Registrations)
+							.Include(s => s.CourseRegistrations) // Changed from Registrations to CourseRegistrations
 					);
 
 				if (student == null)
 					return null;
 
 				// Get program with courses
-				var program = await _unitOfWork.GetRepository<Program>()
+				var program = await _unitOfWork.GetRepository<Major>()
 					.SingleOrDefaultAsync(
 						predicate: p => p.Id == request.ProgramId,
 						include: q => q
-							.Include(p => p.Faculty)
+							.Include(p => p.Department)
 							.Include(p => p.Courses)
 					);
 
@@ -1159,50 +1153,50 @@ namespace CourseRegistration_API.Services.Implements
 					throw new BadHttpRequestException("Program not found");
 
 				// Update student program
-				student.ProgramId = program.Id;
+				student.MajorId = program.Id; // Changed from ProgramId to MajorId
 
 				// Get term for enrollment
-				var term = await _unitOfWork.GetRepository<Term>()
-					.SingleOrDefaultAsync(predicate: t => t.TermName == request.EnrollmentSemester);
+				var term = await _unitOfWork.GetRepository<Semester>()
+					.SingleOrDefaultAsync(predicate: t => t.SemesterName == request.EnrollmentSemester); // Changed from TermName to SemesterName
 
 				if (term == null)
 					throw new BadHttpRequestException("Term not found");
 
 				// Get course offerings for the term
-				var courseOfferings = await _unitOfWork.GetRepository<CourseOffering>()
+				var courseOfferings = await _unitOfWork.GetRepository<ClassSection>()
 					.GetListAsync(
-						predicate: co => co.TermId == term.Id &&
-										program.Courses.Select(c => c.Id).Contains(co.CourseId)
+						predicate: co => co.SemesterId == term.Id && // Changed from TermId to SemesterId
+									  program.Courses.Select(c => c.Id).Contains(co.CourseId)
 					);
 
 				// If replacing all courses, drop existing registrations for this term
 				if (request.ReplaceAllCourses)
 				{
-					var existingRegistrationsForTerm = await _unitOfWork.GetRepository<Registration>()
+					var existingRegistrationsForTerm = await _unitOfWork.GetRepository<CourseRegistration>()
 						.GetListAsync(
 							predicate: r => r.StudentId == studentId &&
-										   r.CourseOffering.TermId == term.Id
+										  r.ClassSection.SemesterId == term.Id // Changed from CourseOffering.TermId to ClassSection.SemesterId
 						);
 
 					foreach (var registration in existingRegistrationsForTerm)
 					{
-						_unitOfWork.GetRepository<Registration>().DeleteAsync(registration);
+						_unitOfWork.GetRepository<CourseRegistration>().DeleteAsync(registration);
 					}
 				}
 
 				// Remove specific courses if specified
 				if (request.CoursesToRemove.Any())
 				{
-					var registrationsToRemove = await _unitOfWork.GetRepository<Registration>()
+					var registrationsToRemove = await _unitOfWork.GetRepository<CourseRegistration>()
 						.GetListAsync(
 							predicate: r => r.StudentId == studentId &&
-										   r.CourseOffering.TermId == term.Id &&
-										   request.CoursesToRemove.Contains(r.CourseOffering.CourseId)
+										  r.ClassSection.SemesterId == term.Id && // Changed from CourseOffering.TermId to ClassSection.SemesterId
+										  request.CoursesToRemove.Contains(r.ClassSection.CourseId) // Changed from CourseOffering.CourseId to ClassSection.CourseId
 						);
 
 					foreach (var registration in registrationsToRemove)
 					{
-						_unitOfWork.GetRepository<Registration>().DeleteAsync(registration);
+						_unitOfWork.GetRepository<CourseRegistration>().DeleteAsync(registration);
 					}
 				}
 
@@ -1222,24 +1216,24 @@ namespace CourseRegistration_API.Services.Implements
 					if (offering != null)
 					{
 						// Check if registration already exists
-						var existingRegistration = await _unitOfWork.GetRepository<Registration>()
+						var existingRegistration = await _unitOfWork.GetRepository<CourseRegistration>()
 							.SingleOrDefaultAsync(
 								predicate: r => r.StudentId == studentId &&
-											  r.CourseOfferingId == offering.Id
+											  r.ClassSectionId == offering.Id // Changed from CourseOfferingId to ClassSectionId
 							);
 
 						if (existingRegistration == null)
 						{
-							var registration = new Registration
+							var registration = new CourseRegistration
 							{
 								Id = Guid.NewGuid(),
 								StudentId = studentId,
-								CourseOfferingId = offering.Id,
+								ClassSectionId = offering.Id, // Changed from CourseOfferingId to ClassSectionId
 								RegistrationDate = DateTime.Now,
 								Status = "Registered"
 							};
 
-							await _unitOfWork.GetRepository<Registration>().InsertAsync(registration);
+							await _unitOfWork.GetRepository<CourseRegistration>().InsertAsync(registration);
 						}
 					}
 				}
@@ -1252,19 +1246,19 @@ namespace CourseRegistration_API.Services.Implements
 					.SingleOrDefaultAsync(
 						predicate: s => s.Id == studentId,
 						include: q => q
-							.Include(s => s.Program)
-								.ThenInclude(p => p.Faculty)
-							.Include(s => s.Program)
+							.Include(s => s.Major) // Changed from Program to Major
+								.ThenInclude(p => p.Department)
+							.Include(s => s.Major) // Changed from Program to Major
 								.ThenInclude(p => p.Courses)
 					);
 
 				return new StudentProgramResponse
 				{
-					ProgramId = updatedStudent.Program.Id,
-					ProgramName = updatedStudent.Program.ProgramName,
-					RequiredCredits = updatedStudent.Program.RequiredCredits,
-					FacultyName = updatedStudent.Program.Faculty.FacultyName,
-					Courses = updatedStudent.Program.Courses.Select(c => new CourseInfo
+					ProgramId = updatedStudent.Major.Id, // Changed from Program.Id to Major.Id
+					MajorName = updatedStudent.Major.MajorName, // Changed from Program.ProgramName to Major.MajorName
+					RequiredCredits = updatedStudent.Major.RequiredCredits,
+					DepartmentName = updatedStudent.Major.Department.DepartmentName,
+					Courses = updatedStudent.Major.Courses.Select(c => new CourseInfo // Changed from Program to Major
 					{
 						CourseId = c.Id,
 						CourseCode = c.CourseCode,
@@ -1290,36 +1284,36 @@ namespace CourseRegistration_API.Services.Implements
 				var student = await _unitOfWork.GetRepository<Student>()
 					.SingleOrDefaultAsync(
 						predicate: s => s.Id == studentId,
-						include: q => q.Include(s => s.Registrations)
+						include: q => q.Include(s => s.CourseRegistrations) // Changed from Registrations to CourseRegistrations
 					);
 
 				if (student == null)
 					return false;
 
 				// Get registrations to delete (either for specific semester or all)
-				var registrationsQuery = _unitOfWork.GetRepository<Registration>()
+				var registrationsQuery = _unitOfWork.GetRepository<CourseRegistration>()
 					.GetListAsync(predicate: r => r.StudentId == studentId);
 
 				if (!string.IsNullOrEmpty(semester))
 				{
 					// Get term ID for the specified semester
-					var term = await _unitOfWork.GetRepository<Term>()
-						.SingleOrDefaultAsync(predicate: t => t.TermName == semester);
+					var term = await _unitOfWork.GetRepository<Semester>()
+						.SingleOrDefaultAsync(predicate: t => t.SemesterName == semester);
 
 					if (term == null)
 						throw new BadHttpRequestException($"Term '{semester}' not found");
 
 					var registrations = await registrationsQuery;
-					registrations = registrations.Where(r => r.CourseOffering.TermId == term.Id).ToList();
+					registrations = registrations.Where(r => r.ClassSection.SemesterId == term.Id).ToList();
 				}
 
-				var registrationsToDelete = await _unitOfWork.GetRepository<Registration>()
-					.GetListAsync(predicate: r => r.StudentId == studentId, include: q => q.Include(r => r.CourseOffering));
+				var registrationsToDelete = await _unitOfWork.GetRepository<CourseRegistration>()
+					.GetListAsync(predicate: r => r.StudentId == studentId, include: q => q.Include(r => r.ClassSection));
 
 				// Delete all registrations
 				foreach (var registration in registrationsToDelete)
 				{
-					_unitOfWork.GetRepository<Registration>().DeleteAsync(registration);
+					_unitOfWork.GetRepository<CourseRegistration>().DeleteAsync(registration);
 				}
 
 				// Reset program assignment if all courses are being deleted and no semester specified
@@ -1327,7 +1321,7 @@ namespace CourseRegistration_API.Services.Implements
 				{
 					// Since we're removing all courses, we should also clear the program
 					// However, this is optional based on business requirements
-					student.ProgramId = Guid.Empty; // This assumes ProgramId can be reset to an empty Guid, adjust if needed
+					student.MajorId = Guid.Empty; // This assumes ProgramId can be reset to an empty Guid, adjust if needed
 				}
 
 				await _unitOfWork.CommitAsync();
@@ -1349,7 +1343,7 @@ namespace CourseRegistration_API.Services.Implements
 				.GetListAsync(
 					predicate: s => s.EnrollmentDate.Year == year,
 					include: q => q.Include(s => s.User)
-							  .Include(s => s.Program)
+							  .Include(s => s.Major) // Change from Program to Major
 				);
 
 			return students.Select(student => new StudentInfoResponse
@@ -1358,7 +1352,7 @@ namespace CourseRegistration_API.Services.Implements
 				Mssv = student.Mssv,
 				FullName = student.User.FullName,
 				Email = student.User.Email,
-				ProgramName = student.Program.ProgramName,
+				MajorName = student.Major.MajorName, // Change from Program.ProgramName to Major.MajorName
 				EnrollmentDate = student.EnrollmentDate,
 				AdmissionDate = student.AdmissionDate,
 				AdmissionStatus = student.AdmissionStatus,
@@ -1370,9 +1364,9 @@ namespace CourseRegistration_API.Services.Implements
 		{
 			var students = await _unitOfWork.GetRepository<Student>()
 				.GetListAsync(
-					predicate: s => s.ProgramId == programId,
+					predicate: s => s.MajorId == programId, // Change from ProgramId to MajorId
 					include: q => q.Include(s => s.User)
-							  .Include(s => s.Program)
+							.Include(s => s.Major) // Change from Program to Major
 				);
 
 			return students.Select(student => new StudentInfoResponse
@@ -1381,7 +1375,7 @@ namespace CourseRegistration_API.Services.Implements
 				Mssv = student.Mssv,
 				FullName = student.User.FullName,
 				Email = student.User.Email,
-				ProgramName = student.Program.ProgramName,
+				MajorName = student.Major.MajorName, // Change from Program.ProgramName to Major.MajorName
 				EnrollmentDate = student.EnrollmentDate,
 				AdmissionDate = student.AdmissionDate,
 				AdmissionStatus = student.AdmissionStatus,
@@ -1397,6 +1391,8 @@ namespace CourseRegistration_API.Services.Implements
 					include: q => q
 						.Include(ss => ss.Student)
 							.ThenInclude(s => s.User)
+						.Include(ss => ss.Student)
+							.ThenInclude(s => s.Major) // Change from Program to Major
 						.Include(ss => ss.Scholarship)
 				);
 
@@ -1406,7 +1402,7 @@ namespace CourseRegistration_API.Services.Implements
 				Mssv = ss.Student.Mssv,
 				FullName = ss.Student.User.FullName,
 				Email = ss.Student.User.Email,
-				ProgramName = ss.Student.Program.ProgramName,
+				MajorName = ss.Student.Major.MajorName, // Change from Program.ProgramName to Major.MajorName
 				EnrollmentDate = ss.Student.EnrollmentDate,
 				AdmissionDate = ss.Student.AdmissionDate,
 				AdmissionStatus = ss.Student.AdmissionStatus,

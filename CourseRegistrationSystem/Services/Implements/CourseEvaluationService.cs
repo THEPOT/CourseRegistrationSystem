@@ -22,12 +22,12 @@ namespace CourseRegistration_API.Services.Implements
 
 		public async Task<List<CourseOfferingForEvaluationResponse>> GetCourseOfferingsForEvaluation(Guid termId)
 		{
-			var courseOfferings = await _unitOfWork.GetRepository<CourseOffering>()
+			var courseOfferings = await _unitOfWork.GetRepository<ClassSection>()
 				.GetListAsync(
-					predicate: co => co.TermId == termId,
+					predicate: co => co.SemesterId == termId, // Change TermId to SemesterId
 					include: q => q
 						.Include(co => co.Course)
-						.Include(co => co.Lecturer)
+						.Include(co => co.Professor) // Change Lecturer to Professor
 							.ThenInclude(l => l.User)
 				);
 
@@ -36,16 +36,16 @@ namespace CourseRegistration_API.Services.Implements
 				CourseOfferingId = co.Id,
 				CourseCode = co.Course.CourseCode,
 				CourseName = co.Course.CourseName,
-				LecturerId = co.Lecturer.Id,
-				LecturerName = co.Lecturer.User.FullName
+				ProfessorId = co.ProfessorId, // Change LecturerId to ProfessorId
+				ProfessorName = co.Professor.User.FullName // Change Lecturer to Professor
 			}).ToList();
 		}
 
 		public async Task<List<CourseEvaluationSummaryResponse>> GetCourseEvaluationSummaries(Guid termId)
 		{
-			var courseOfferings = await _unitOfWork.GetRepository<CourseOffering>()
+			var courseOfferings = await _unitOfWork.GetRepository<ClassSection>()
 				.GetListAsync(
-					predicate: co => co.TermId == termId,
+					predicate: co => co.SemesterId == termId, // Change TermId to SemesterId
 					include: q => q
 						.Include(co => co.Course)
 						.Include(co => co.CourseEvaluations)
@@ -72,7 +72,7 @@ namespace CourseRegistration_API.Services.Implements
 		{
 			try
 			{
-				var courseOffering = await _unitOfWork.GetRepository<CourseOffering>()
+				var courseOffering = await _unitOfWork.GetRepository<ClassSection>()
 					.SingleOrDefaultAsync(predicate: co => co.Id == request.CourseOfferingId);
 
 				if (courseOffering == null)
@@ -81,7 +81,7 @@ namespace CourseRegistration_API.Services.Implements
 				// Check if student has already evaluated this course
 				var existingEvaluation = await _unitOfWork.GetRepository<CourseEvaluation>()
 					.SingleOrDefaultAsync(predicate: ce =>
-						ce.CourseOfferingId == request.CourseOfferingId &&
+						ce.ClassSectionId == request.CourseOfferingId && // Change CourseOfferingId to ClassSectionId
 						ce.StudentId == request.StudentId);
 
 				if (existingEvaluation != null)
@@ -91,7 +91,7 @@ namespace CourseRegistration_API.Services.Implements
 				var evaluation = new CourseEvaluation
 				{
 					Id = Guid.NewGuid(),
-					CourseOfferingId = request.CourseOfferingId,
+					ClassSectionId = request.CourseOfferingId, // Change CourseOfferingId to ClassSectionId
 					StudentId = request.StudentId,
 					Rating = request.Rating,
 					Comments = request.Comments,

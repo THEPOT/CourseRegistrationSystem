@@ -9,9 +9,15 @@ public partial class Department
 
     public string DepartmentName { get; set; } = null!;
 
+    public virtual ICollection<AdministrativeStaff> AdministrativeStaffs { get; set; } = new List<AdministrativeStaff>();
+
+    public virtual ICollection<Course> Courses { get; set; } = new List<Course>();
+
     public virtual ICollection<FinancialAid> FinancialAids { get; set; } = new List<FinancialAid>();
 
-    public virtual ICollection<Scholarship> Scholarships { get; set; } = new List<Scholarship>();
+    public virtual ICollection<Major> Majors { get; set; } = new List<Major>();
 
-    public virtual ICollection<Staff> Staff { get; set; } = new List<Staff>();
+    public virtual ICollection<Professor> Professors { get; set; } = new List<Professor>();
+
+    public virtual ICollection<Scholarship> Scholarships { get; set; } = new List<Scholarship>();
 }

@@ -5,7 +5,7 @@ namespace CourseRegistration_API.Payload.Request
         public string Email { get; set; }  // Added field
         public string FullName { get; set; }
         public string Mssv { get; set; }  // Added field
-        public Guid? ProgramId { get; set; }
+        public Guid? MajorId { get; set; }
         public DateOnly? EnrollmentDate { get; set; }  // Added field
         public DateOnly? AdmissionDate { get; set; }
         public string AdmissionStatus { get; set; }
