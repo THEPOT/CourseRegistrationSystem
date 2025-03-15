@@ -8,7 +8,7 @@ namespace CourseRegistration_API.Payload.Request
 		public string Email { get; set; }
 		public string Password { get; set; }
 
-		public Guid ProgramId { get; set; }
+		public Guid MajorId { get; set; }
 
 		public string ImageUrl { get; set; }
 		public RoleEnum Role { get; set; }

@@ -28,67 +28,67 @@ namespace CourseRegistration_API.Services.Implements
 					predicate: s => s.Id == studentId,
 					include: q => q
 						.Include(s => s.User)
-						.Include(s => s.Program)
+						.Include(s => s.Major)
 							.ThenInclude(p => p.Courses)
-						.Include(s => s.Registrations)
-							.ThenInclude(r => r.CourseOffering)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
 								.ThenInclude(co => co.Course)
-						.Include(s => s.Registrations)
-							.ThenInclude(r => r.CourseOffering)
-								.ThenInclude(co => co.Term)
-						.Include(s => s.Registrations)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
+								.ThenInclude(co => co.Semester)
+						.Include(s => s.CourseRegistrations)
 							.ThenInclude(r => r.Grades)
 				);
 
 			if (student == null)
 				return null;
 
-			// Get all program required courses
-			var requiredCourses = student.Program.Courses.ToList();
+			// Get all Major required courses
+			var requiredCourses = student.Major.Courses.ToList();
 			var requiredCourseIds = requiredCourses.Select(c => c.Id).ToList();
 
 			// Get completed courses (with passing grades)
-			var completedRegistrations = student.Registrations
+			var completedRegistrations = student.CourseRegistrations
 				.Where(r => r.Grades.Any(g => g.QualityPoints >= 1.0m)) // Passing grade
 				.ToList();
 
 			var completedCourseIds = completedRegistrations
-				.Select(r => r.CourseOffering.CourseId)
+				.Select(r => r.ClassSection.CourseId)
 				.ToList();
 
 			// Get courses in progress (registered but no grades or non-passing grades)
-			var inProgressRegistrations = student.Registrations
+			var inProgressRegistrations = student.CourseRegistrations
 				.Where(r => !r.Grades.Any() || r.Grades.Any(g => g.QualityPoints < 1.0m))
 				.ToList();
 
 			// Get remaining required courses
 			var remainingCourseIds = requiredCourseIds
 				.Except(completedCourseIds)
-				.Except(inProgressRegistrations.Select(r => r.CourseOffering.CourseId))
+				.Except(inProgressRegistrations.Select(r => r.ClassSection.CourseId))
 				.ToList();
 
 			// Calculate completed credits
-			var completedCredits = completedRegistrations.Sum(r => r.CourseOffering.Course.Credits);
+			var completedCredits = completedRegistrations.Sum(r => r.ClassSection.Course.Credits);
 
 			// Calculate remaining credits
-			var remainingCredits = student.Program.RequiredCredits - completedCredits;
+			var remainingCredits = student.Major.RequiredCredits - completedCredits;
 
 			// Calculate GPA
 			var totalQualityPoints = completedRegistrations
 				.Sum(registration => 
 					registration.Grades.Sum(grade => 
-						grade.QualityPoints * registration.CourseOffering.Course.Credits
+						grade.QualityPoints * registration.ClassSection.Course.Credits
 					)
 				);
 
-			var totalCreditsForGPA = completedRegistrations.Sum(r => r.CourseOffering.Course.Credits);
+			var totalCreditsForGPA = completedRegistrations.Sum(r => r.ClassSection.Course.Credits);
 
 			var gpa = totalCreditsForGPA > 0
 				? (double)(totalQualityPoints / totalCreditsForGPA)
 				: 0.0;
 
 			// Determine graduation eligibility (simple check - can be made more complex)
-			var eligibleForGraduation = completedCredits >= student.Program.RequiredCredits &&
+			var eligibleForGraduation = completedCredits >= student.Major.RequiredCredits &&
 									   remainingCourseIds.Count == 0;
 
 			// Retrieve additional requirements from a degreeAuditNotes table or other source
@@ -102,12 +102,12 @@ namespace CourseRegistration_API.Services.Implements
 				StudentId = student.Id,
 				Mssv = student.Mssv,
 				StudentName = student.User.FullName,
-				ProgramName = student.Program.ProgramName,
-				RequiredCredits = student.Program.RequiredCredits,
+				MajorName = student.Major.MajorName,
+				RequiredCredits = student.Major.RequiredCredits,
 				CompletedCredits = completedCredits,
 				RemainingCredits = remainingCredits,
-				CompletionPercentage = student.Program.RequiredCredits > 0
-					? Math.Round((double)completedCredits / student.Program.RequiredCredits * 100, 2)
+				CompletionPercentage = student.Major.RequiredCredits > 0
+					? Math.Round((double)completedCredits / student.Major.RequiredCredits * 100, 2)
 					: 0,
 				GPA = Math.Round(gpa, 2),
 				EligibleForGraduation = eligibleForGraduation,
@@ -128,25 +128,25 @@ namespace CourseRegistration_API.Services.Implements
 			// Add completed courses with grades
 			response.CompletedCourses = completedRegistrations.Select(r => new CourseAuditInfo
 			{
-				CourseId = r.CourseOffering.CourseId,
-				CourseCode = r.CourseOffering.Course.CourseCode,
-				CourseName = r.CourseOffering.Course.CourseName,
-				Credits = r.CourseOffering.Course.Credits,
+				CourseId = r.ClassSection.CourseId,
+				CourseCode = r.ClassSection.Course.CourseCode,
+				CourseName = r.ClassSection.Course.CourseName,
+				Credits = r.ClassSection.Course.Credits,
 				Grade = r.Grades.FirstOrDefault()?.GradeValue,
 				QualityPoints = r.Grades.FirstOrDefault()?.QualityPoints,
-				Semester = r.CourseOffering.Term.TermName,
-				IsRequired = requiredCourseIds.Contains(r.CourseOffering.CourseId)
+				Semester = r.ClassSection.Semester.SemesterName,
+				IsRequired = requiredCourseIds.Contains(r.ClassSection.CourseId)
 			}).ToList();
 
 			// Add in-progress courses
 			response.InProgressCourses = inProgressRegistrations.Select(r => new CourseAuditInfo
 			{
-				CourseId = r.CourseOffering.CourseId,
-				CourseCode = r.CourseOffering.Course.CourseCode,
-				CourseName = r.CourseOffering.Course.CourseName,
-				Credits = r.CourseOffering.Course.Credits,
-				Semester = r.CourseOffering.Term.TermName,
-				IsRequired = requiredCourseIds.Contains(r.CourseOffering.CourseId)
+				CourseId = r.ClassSection.CourseId,
+				CourseCode = r.ClassSection.Course.CourseCode,
+				CourseName = r.ClassSection.Course.CourseName,
+				Credits = r.ClassSection.Course.Credits,
+				Semester = r.ClassSection.Semester.SemesterName,
+				IsRequired = requiredCourseIds.Contains(r.ClassSection.CourseId)
 			}).ToList();
 
 			// Add remaining required courses

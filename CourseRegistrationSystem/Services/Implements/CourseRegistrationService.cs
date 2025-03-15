@@ -24,30 +24,30 @@ namespace CourseRegistration_API.Services.Implements
 		public async Task<List<CourseOfferingResponse>> GetTermCourseOfferings(Guid termId, Guid? studentId = null)
 		{
 			// Get all course offerings for the term
-			var courseOfferings = await _unitOfWork.GetRepository<CourseOffering>()
+			var classSections = await _unitOfWork.GetRepository<ClassSection>()
 				.GetListAsync(
-					predicate: co => co.TermId == termId,
+					predicate: co => co.SemesterId == termId,
 					include: q => q
 						.Include(co => co.Course)
-						.Include(co => co.Lecturer)
+						.Include(co => co.Professor)
 							.ThenInclude(l => l.User)
-						.Include(co => co.Registrations)
+						.Include(co => co.CourseRegistrations)
 				);
 
 			// Create the response list
-			var response = courseOfferings.Select(co => new CourseOfferingResponse
+			var response = classSections.Select(co => new CourseOfferingResponse
 			{
 				CourseOfferingId = co.Id,
 				CourseId = co.CourseId,
 				CourseCode = co.Course.CourseCode,
 				CourseName = co.Course.CourseName,
 				Credits = co.Course.Credits,
-				LecturerId = co.LecturerId,
-				LecturerName = co.Lecturer.User.FullName,
-				Classroom = co.Classroom,
-				Schedule = co.Schedule,
+				LecturerId = co.ProfessorId,
+				LecturerName = co.Professor.User.FullName,
+				Classroom = co.Classroom?.RoomName ?? "Online",
+				Schedule = GetScheduleString(co),
 				Capacity = co.Capacity,
-				RegisteredCount = co.Registrations.Count,
+				RegisteredCount = co.CourseRegistrations?.Count ?? 0,
 				PrerequisiteStatus = "Not Required", // Default value, will be updated if studentId is provided
 				ConflictingCourses = new List<string>()
 			}).ToList();
@@ -59,11 +59,11 @@ namespace CourseRegistration_API.Services.Implements
 				var passedCourses = await GetStudentPassedCourses(studentId.Value);
 
 				// Get student's current registrations for this term
-				var currentRegistrations = await _unitOfWork.GetRepository<Registration>()
+				var currentRegistrations = await _unitOfWork.GetRepository<CourseRegistration>()
 					.GetListAsync(
 						predicate: r => r.StudentId == studentId.Value &&
-									  r.CourseOffering.TermId == termId,
-						include: q => q.Include(r => r.CourseOffering)
+									  r.ClassSection.SemesterId == termId,
+						include: q => q.Include(r => r.ClassSection)
 									  .ThenInclude(co => co.Course)
 					);
 
@@ -80,23 +80,32 @@ namespace CourseRegistration_API.Services.Implements
 			return response;
 		}
 
+		private string GetScheduleString(ClassSection classSection)
+		{
+			if (classSection.ClassSectionSchedules == null || !classSection.ClassSectionSchedules.Any())
+				return "Not scheduled";
+
+			return string.Join(", ", classSection.ClassSectionSchedules.Select(s =>
+				$"{s.DayOfWeek} {s.StartTime:hh\\:mm}-{s.EndTime:hh\\:mm}"));
+		}
+
 		private async Task<List<Guid>> GetStudentPassedCourses(Guid studentId)
 		{
-			var registrations = await _unitOfWork.GetRepository<Registration>()
+			var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
 				.GetListAsync(
 					predicate: r => r.StudentId == studentId,
 					include: q => q
 						.Include(r => r.Grades)
-						.Include(r => r.CourseOffering)
+						.Include(r => r.ClassSection)
 				);
 
 			return registrations
-				.Where(r => r.Grades.Any(g => g.QualityPoints >= 2.0m)) // C grade or better
-				.Select(r => r.CourseOffering.CourseId)
+				.Where(r => r.Grades != null && r.Grades.Any(g => g.QualityPoints >= 2.0m)) // C grade or better
+				.Select(r => r.ClassSection.CourseId)
 				.ToList();
 		}
 
-		private async Task<string> CheckPrerequisiteStatus(Guid studentId, Guid courseId, List<Guid> passedCourses = null)
+		private async Task<string> CheckPrerequisiteStatus(Guid studentId, Guid courseId, List<Guid>? passedCourses = null)
 		{
 			if (passedCourses == null)
 			{
@@ -129,7 +138,7 @@ namespace CourseRegistration_API.Services.Implements
 			return "Satisfied";
 		}
 
-		private List<string> GetScheduleConflicts(CourseOfferingResponse offering, ICollection<Registration> currentRegistrations)
+		private List<string> GetScheduleConflicts(CourseOfferingResponse offering, ICollection<CourseRegistration> currentRegistrations)
 		{
 			var conflicts = new List<string>();
 
@@ -137,10 +146,12 @@ namespace CourseRegistration_API.Services.Implements
 			// In a real system, you would parse the schedule strings and check for actual time overlaps
 			foreach (var registration in currentRegistrations)
 			{
-				if (registration.CourseOffering.Schedule == offering.Schedule &&
-					registration.CourseOffering.Id != offering.CourseOfferingId)
+				var regSchedule = GetScheduleString(registration.ClassSection);
+
+				if (regSchedule == offering.Schedule &&
+					registration.ClassSection.Id != offering.CourseOfferingId)
 				{
-					conflicts.Add($"{registration.CourseOffering.Course.CourseCode}: {registration.CourseOffering.Schedule}");
+					conflicts.Add($"{registration.ClassSection.Course.CourseCode}: {regSchedule}");
 				}
 			}
 
@@ -155,20 +166,20 @@ namespace CourseRegistration_API.Services.Implements
 
 		public async Task<List<CourseRegistrationSummaryResponse>> GetRegistrationSummaryByTerm(Guid termId)
 		{
-			var courseOfferings = await _unitOfWork.GetRepository<CourseOffering>()
+			var classSections = await _unitOfWork.GetRepository<ClassSection>()
 				.GetListAsync(
-					predicate: co => co.TermId == termId,
+					predicate: co => co.SemesterId == termId,
 					include: q => q
 						.Include(co => co.Course)
-						.Include(co => co.Registrations)
+						.Include(co => co.CourseRegistrations)
 				);
 
-			return courseOfferings
+			return classSections
 				.GroupBy(co => new { co.Course.CourseCode, co.Course.CourseName })
 				.Select(group =>
 				{
 					int totalCapacity = group.Sum(co => co.Capacity);
-					int totalRegistered = group.Sum(co => co.Registrations.Count);
+					int totalRegistered = group.Sum(co => co.CourseRegistrations?.Count ?? 0);
 
 					return new CourseRegistrationSummaryResponse
 					{
@@ -189,72 +200,75 @@ namespace CourseRegistration_API.Services.Implements
 		{
 			try
 			{
-
-				// Check if the course offering exists
-				var courseOffering = await _unitOfWork.GetRepository<CourseOffering>()
+				// Check if the class section exists
+				var classSection = await _unitOfWork.GetRepository<ClassSection>()
 					.SingleOrDefaultAsync(
 						predicate: co => co.Id == request.CourseOfferingId,
 						include: q => q
 							.Include(co => co.Course)
-							.Include(co => co.Registrations)
+							.Include(co => co.CourseRegistrations)
 					);
 
-				if (courseOffering == null)
-					throw new BadHttpRequestException("Course offering not found");
+				if (classSection == null)
+					throw new BadHttpRequestException("Class section not found");
 
 				// Check if already registered
-				var existingRegistration = await _unitOfWork.GetRepository<Registration>()
+				var existingRegistration = await _unitOfWork.GetRepository<CourseRegistration>()
 					.SingleOrDefaultAsync(
 						predicate: r => r.StudentId == request.StudentId &&
-									 r.CourseOfferingId == request.CourseOfferingId
+									 r.ClassSectionId == request.CourseOfferingId
 					);
 
 				if (existingRegistration != null)
 					throw new BadHttpRequestException("Student is already registered for this course");
 
 				// Check capacity
-				bool isWaitlisted = courseOffering.Registrations.Count >= courseOffering.Capacity;
+				bool isWaitlisted = classSection.CourseRegistrations.Count >= classSection.Capacity;
 
 				// Check prerequisites
-				var prerequisiteStatus = await CheckPrerequisiteStatus(request.StudentId, courseOffering.CourseId);
+				var prerequisiteStatus = await CheckPrerequisiteStatus(request.StudentId, classSection.CourseId);
 				if (prerequisiteStatus == "Missing")
 					throw new BadHttpRequestException("Prerequisites not satisfied for this course");
 
 				// Check schedule conflicts
-				var studentTermRegistrations = await _unitOfWork.GetRepository<Registration>()
+				var studentTermRegistrations = await _unitOfWork.GetRepository<CourseRegistration>()
 					.GetListAsync(
 						predicate: r => r.StudentId == request.StudentId &&
-									  r.CourseOffering.TermId == courseOffering.TermId,
-						include: q => q.Include(r => r.CourseOffering)
+									  r.ClassSection.SemesterId == classSection.SemesterId,
+						include: q => q.Include(r => r.ClassSection)
+									   .ThenInclude(cs => cs.Course)
 					);
 
 				foreach (var termRegistration in studentTermRegistrations)
 				{
 					var scheduleHelper = new ScheduleHelper();
-					if (scheduleHelper.HasScheduleConflict(termRegistration.CourseOffering.Schedule, courseOffering.Schedule))
+					var existingSchedule = GetScheduleString(termRegistration.ClassSection);
+					var newSchedule = GetScheduleString(classSection);
+
+					if (scheduleHelper.HasScheduleConflict(existingSchedule, newSchedule))
 					{
-						throw new BadHttpRequestException($"Schedule conflict with {termRegistration.CourseOffering.Course.CourseCode}: {termRegistration.CourseOffering.Schedule}");
+						throw new BadHttpRequestException($"Schedule conflict with {termRegistration.ClassSection.Course.CourseCode}: {existingSchedule}");
 					}
 				}
 
 				// Check total credits for the term
-				int currentTermCredits = studentTermRegistrations.Sum(r => r.CourseOffering.Course.Credits);
-				int newCourseCredits = courseOffering.Course.Credits;
+				int currentTermCredits = studentTermRegistrations.Sum(r => r.ClassSection.Course.Credits);
+				int newCourseCredits = classSection.Course.Credits;
 
 				if (currentTermCredits + newCourseCredits > 24) // Assuming max is 24 credits
 					throw new BadHttpRequestException("Registering for this course would exceed maximum credit limit");
 
 				// Create registration
-				var registration = new Registration
+				var registration = new CourseRegistration
 				{
 					Id = Guid.NewGuid(),
 					StudentId = request.StudentId,
-					CourseOfferingId = request.CourseOfferingId,
+					ClassSectionId = request.CourseOfferingId,
 					RegistrationDate = DateTime.Now,
 					Status = isWaitlisted ? "Waitlisted" : "Registered"
 				};
 
-				await _unitOfWork.GetRepository<Registration>().InsertAsync(registration);
+				await _unitOfWork.GetRepository<CourseRegistration>().InsertAsync(registration);
 				await _unitOfWork.CommitAsync();
 
 				return true;
@@ -296,8 +310,7 @@ namespace CourseRegistration_API.Services.Implements
 		{
 			try
 			{
-
-				var registration = await _unitOfWork.GetRepository<Registration>()
+				var registration = await _unitOfWork.GetRepository<CourseRegistration>()
 					.SingleOrDefaultAsync(predicate: r => r.Id == registrationId);
 
 				if (registration == null)
@@ -324,16 +337,14 @@ namespace CourseRegistration_API.Services.Implements
 		{
 			try
 			{
-
-				var registration = await _unitOfWork.GetRepository<Registration>()
+				var registration = await _unitOfWork.GetRepository<CourseRegistration>()
 					.SingleOrDefaultAsync(predicate: r => r.Id == registrationId);
 
 				if (registration == null)
 					throw new BadHttpRequestException("Registration not found");
 
-				_unitOfWork.GetRepository<Registration>().DeleteAsync(registration);
+				_unitOfWork.GetRepository<CourseRegistration>().DeleteAsync(registration);
 				await _unitOfWork.CommitAsync();
-
 
 				return true;
 			}
@@ -343,49 +354,48 @@ namespace CourseRegistration_API.Services.Implements
 				throw;
 			}
 		}
-
 		public async Task<List<CourseOfferingResponse>> GetStudentRegistrations(Guid studentId, Guid termId)
 		{
-			var registrations = await _unitOfWork.GetRepository<Registration>()
+			var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
 				.GetListAsync(
 					predicate: r => r.StudentId == studentId &&
-								  r.CourseOffering.TermId == termId,
+								  r.ClassSection.SemesterId == termId,
 					include: q => q
-						.Include(r => r.CourseOffering)
+						.Include(r => r.ClassSection)
 							.ThenInclude(co => co.Course)
-						.Include(r => r.CourseOffering)
-							.ThenInclude(co => co.Lecturer)
+						.Include(r => r.ClassSection)
+							.ThenInclude(co => co.Professor)
 								.ThenInclude(l => l.User)
-						.Include(r => r.CourseOffering)
-							.ThenInclude(co => co.Registrations)
+						.Include(r => r.ClassSection)
+							.ThenInclude(co => co.CourseRegistrations)
 				);
 
 			return registrations.Select(r => new CourseOfferingResponse
 			{
-				CourseOfferingId = r.CourseOffering.Id,
-				CourseId = r.CourseOffering.CourseId,
-				CourseCode = r.CourseOffering.Course.CourseCode,
-				CourseName = r.CourseOffering.Course.CourseName,
-				Credits = r.CourseOffering.Course.Credits,
-				LecturerId = r.CourseOffering.LecturerId,
-				LecturerName = r.CourseOffering.Lecturer.User.FullName,
-				Classroom = r.CourseOffering.Classroom,
-				Schedule = r.CourseOffering.Schedule,
-				Capacity = r.CourseOffering.Capacity,
-				RegisteredCount = r.CourseOffering.Registrations.Count
+				CourseOfferingId = r.ClassSection.Id,
+				CourseId = r.ClassSection.CourseId,
+				CourseCode = r.ClassSection.Course.CourseCode,
+				CourseName = r.ClassSection.Course.CourseName,
+				Credits = r.ClassSection.Course.Credits,
+				LecturerId = r.ClassSection.ProfessorId,
+				LecturerName = r.ClassSection.Professor.User.FullName,
+				Classroom = r.ClassSection.Classroom?.RoomName ?? "Online",
+				Schedule = GetScheduleString(r.ClassSection),
+				Capacity = r.ClassSection.Capacity,
+				RegisteredCount = r.ClassSection.CourseRegistrations?.Count ?? 0
 			}).ToList();
 		}
 
 		public async Task<List<StudentInfoResponse>> GetCourseStudents(Guid courseOfferingId)
 		{
-			var registrations = await _unitOfWork.GetRepository<Registration>()
+			var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
 				.GetListAsync(
-					predicate: r => r.CourseOfferingId == courseOfferingId && r.Status != "Dropped",
+					predicate: r => r.ClassSectionId == courseOfferingId && r.Status != "Dropped",
 					include: q => q
 						.Include(r => r.Student)
 							.ThenInclude(s => s.User)
 						.Include(r => r.Student)
-							.ThenInclude(s => s.Program)
+							.ThenInclude(s => s.Major)
 				);
 
 			return registrations
@@ -396,7 +406,7 @@ namespace CourseRegistration_API.Services.Implements
 					Mssv = r.Student.Mssv,
 					FullName = r.Student.User.FullName,
 					Email = r.Student.User.Email,
-					ProgramName = r.Student.Program.ProgramName,
+					MajorName = r.Student.Major.MajorName,
 					EnrollmentDate = r.Student.EnrollmentDate,
 					ImageUrl = r.Student.User.Image
 				}).ToList();

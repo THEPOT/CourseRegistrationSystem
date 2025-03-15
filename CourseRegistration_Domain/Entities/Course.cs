@@ -17,13 +17,13 @@ public partial class Course
 
     public string? LearningOutcomes { get; set; }
 
-    public Guid FacultyId { get; set; }
+    public Guid DepartmentId { get; set; }
 
-    public virtual ICollection<CourseOffering> CourseOfferings { get; set; } = new List<CourseOffering>();
+    public virtual ICollection<ClassSection> ClassSections { get; set; } = new List<ClassSection>();
 
     public virtual ICollection<CourseSyllabus> CourseSyllabi { get; set; } = new List<CourseSyllabus>();
 
-    public virtual Faculty Faculty { get; set; } = null!;
+    public virtual Department Department { get; set; } = null!;
 
     public virtual ICollection<Course> CorequisiteCourses { get; set; } = new List<Course>();
 
@@ -31,7 +31,7 @@ public partial class Course
 
     public virtual ICollection<Course> CoursesNavigation { get; set; } = new List<Course>();
 
-    public virtual ICollection<Course> PrerequisiteCourses { get; set; } = new List<Course>();
+    public virtual ICollection<Major> Majors { get; set; } = new List<Major>();
 
-    public virtual ICollection<Program> Programs { get; set; } = new List<Program>();
+    public virtual ICollection<Course> PrerequisiteCourses { get; set; } = new List<Course>();
 }

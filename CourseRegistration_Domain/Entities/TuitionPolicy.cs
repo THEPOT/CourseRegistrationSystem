@@ -17,9 +17,9 @@ public partial class TuitionPolicy
 
     public DateOnly? ExpirationDate { get; set; }
 
-    public Guid? ProgramId { get; set; }
+    public Guid? MajorId { get; set; }
 
-    public virtual Program? Program { get; set; }
+    public virtual Major? Major { get; set; }
 
     public virtual ICollection<StudentTuition> StudentTuitions { get; set; } = new List<StudentTuition>();
 }

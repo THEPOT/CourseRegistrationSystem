@@ -35,7 +35,7 @@ namespace CourseRegistration_API.Services.Implements
 			{
 				case RoleEnum.Admin:
 				case RoleEnum.Staff:
-					Guid staffId = await _unitOfWork.GetRepository<Staff>().SingleOrDefaultAsync(selector: x => x.Id, predicate: x => x.UserId.Equals(account.Id));
+					Guid staffId = await _unitOfWork.GetRepository<AdministrativeStaff>().SingleOrDefaultAsync(selector: x => x.Id, predicate: x => x.UserId.Equals(account.Id));
 					guidClaim = new Tuple<string, Guid>("staffId", staffId);
 					loginResponse = new LoginResponse(
 						 account.FullName,
@@ -53,7 +53,7 @@ namespace CourseRegistration_API.Services.Implements
 					);
 					break;
 				case RoleEnum.Lecturer:
-					Guid lecturerId = await _unitOfWork.GetRepository<Lecturer>().SingleOrDefaultAsync(selector: x => x.Id, predicate: x => x.UserId.Equals(account.Id));
+					Guid lecturerId = await _unitOfWork.GetRepository<Professor>().SingleOrDefaultAsync(selector: x => x.Id, predicate: x => x.UserId.Equals(account.Id));
 					guidClaim = new Tuple<string, Guid>("lecturerId", lecturerId);
 					loginResponse = new LoginResponse(
 						 account.FullName,
@@ -175,7 +175,7 @@ namespace CourseRegistration_API.Services.Implements
 						{
 							Id = Guid.NewGuid(),
 							UserId = newUser.Id,
-							ProgramId = registerRequest.ProgramId,
+							MajorId = registerRequest.MajorId,
 							Mssv = MSSVGeneration.GenerateStudentId(),
 							EnrollmentDate = DateOnly.FromDateTime(DateTime.Now) // Set to current date
 						};
@@ -183,21 +183,21 @@ namespace CourseRegistration_API.Services.Implements
 						break;
 
 					case RoleEnum.Lecturer:
-						var newLecturer = new Lecturer
+						var newLecturer = new Professor
 						{
 							Id = Guid.NewGuid(),
 							UserId = newUser.Id,
 						};
-						await _unitOfWork.GetRepository<Lecturer>().InsertAsync(newLecturer);
+						await _unitOfWork.GetRepository<Professor>().InsertAsync(newLecturer);
 						break;
 					case RoleEnum.Admin:
 					case RoleEnum.Staff:
-						var newStaff = new Staff
+						var newStaff = new AdministrativeStaff
 						{
 							Id = Guid.NewGuid(),
 							UserId = newUser.Id,
 						};
-						await _unitOfWork.GetRepository<Staff>().InsertAsync(newStaff);
+						await _unitOfWork.GetRepository<AdministrativeStaff>().InsertAsync(newStaff);
 						break;
 					default:
 						_logger.LogWarning("Unhandled role {RoleName} during registration.", registerRequest.Role);

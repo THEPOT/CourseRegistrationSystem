@@ -11,7 +11,7 @@
 
 	public class MidtermEvaluationSummaryResponse
 	{
-		public Guid CourseOfferingId { get; set; }
+		public Guid ClassSectionId { get; set; }
 		public string CourseCode { get; set; }
 		public string CourseName { get; set; }
 		public string TermName { get; set; }

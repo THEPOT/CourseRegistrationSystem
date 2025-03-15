@@ -5,7 +5,7 @@
 		public Guid StudentId { get; set; }
 		public string Mssv { get; set; }
 		public string StudentName { get; set; }
-		public string ProgramName { get; set; }
+		public string MajorName { get; set; }
 		public int RequiredCredits { get; set; }
 		public int CompletedCredits { get; set; }
 		public int RemainingCredits { get; set; }

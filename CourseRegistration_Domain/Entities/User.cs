@@ -17,11 +17,11 @@ public partial class User
 
     public Guid RoleId { get; set; }
 
-    public virtual ICollection<Lecturer> Lecturers { get; set; } = new List<Lecturer>();
+    public virtual ICollection<AdministrativeStaff> AdministrativeStaffs { get; set; } = new List<AdministrativeStaff>();
+
+    public virtual ICollection<Professor> Professors { get; set; } = new List<Professor>();
 
     public virtual Role Role { get; set; } = null!;
-
-    public virtual ICollection<Staff> Staff { get; set; } = new List<Staff>();
 
     public virtual ICollection<Student> Students { get; set; } = new List<Student>();
 }

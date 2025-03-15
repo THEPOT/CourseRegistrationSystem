@@ -7,11 +7,11 @@ public partial class MidtermEvaluation
 {
     public Guid Id { get; set; }
 
-    public Guid RegistrationId { get; set; }
+    public Guid CourseRegistrationId { get; set; }
 
     public string Status { get; set; } = null!;
 
     public string? Recommendation { get; set; }
 
-    public virtual Registration Registration { get; set; } = null!;
+    public virtual CourseRegistration CourseRegistration { get; set; } = null!;
 }

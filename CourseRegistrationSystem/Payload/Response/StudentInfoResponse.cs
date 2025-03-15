@@ -6,7 +6,7 @@
         public string Mssv { get; set; }
         public string FullName { get; set; }
         public string Email { get; set; }
-        public string ProgramName { get; set; }
+        public string MajorName { get; set; }
         public DateOnly EnrollmentDate { get; set; }
         public DateOnly? AdmissionDate { get; set; }
         public string AdmissionStatus { get; set; }

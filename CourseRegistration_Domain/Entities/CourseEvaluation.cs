@@ -7,7 +7,7 @@ public partial class CourseEvaluation
 {
     public Guid Id { get; set; }
 
-    public Guid CourseOfferingId { get; set; }
+    public Guid ClassSectionId { get; set; }
 
     public Guid StudentId { get; set; }
 
@@ -17,7 +17,7 @@ public partial class CourseEvaluation
 
     public DateTime EvaluationDate { get; set; }
 
-    public virtual CourseOffering CourseOffering { get; set; } = null!;
+    public virtual ClassSection ClassSection { get; set; } = null!;
 
     public virtual Student Student { get; set; } = null!;
 }

@@ -3,17 +3,17 @@ using System.Collections.Generic;
 
 namespace CourseRegistration_Domain.Entities;
 
-public partial class Program
+public partial class Major
 {
     public Guid Id { get; set; }
 
-    public string ProgramName { get; set; } = null!;
+    public string MajorName { get; set; } = null!;
 
     public int RequiredCredits { get; set; }
 
-    public Guid FacultyId { get; set; }
+    public Guid DepartmentId { get; set; }
 
-    public virtual Faculty Faculty { get; set; } = null!;
+    public virtual Department Department { get; set; } = null!;
 
     public virtual ICollection<Student> Students { get; set; } = new List<Student>();
 

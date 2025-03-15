@@ -5,8 +5,8 @@
 		public Guid CourseOfferingId { get; set; }
 		public string CourseCode { get; set; }
 		public string CourseName { get; set; }
-		public Guid LecturerId { get; set; }
-		public string LecturerName { get; set; }
+		public Guid ProfessorId { get; set; }
+		public string ProfessorName { get; set; }
 	}
 
 	public class CourseEvaluationSummaryResponse
