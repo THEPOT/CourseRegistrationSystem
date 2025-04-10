@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace CourseRegistration_API.Controllers
 {
 	[ApiController]
-	[Route("api/[controller]")]
+	[Route("api/v1/[controller]")]
 	public class ServiceRequestsController : ControllerBase
 	{
 		private readonly IServiceRequestService _serviceRequestService;

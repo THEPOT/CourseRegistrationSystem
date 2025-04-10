@@ -1,5 +1,5 @@
 ﻿-- -- Tạo cơ sở dữ liệu
- Drop DATABASE UniversityDb;
+ -- Drop DATABASE UniversityDb;
 -- GO
 -- -- dotnet ef dbcontext scaffold "Server=(local);uid=sa;pwd=12345;database=UniversityDb;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer --output-dir Models
 -- -- Tạo cơ sở dữ liệu
@@ -7,10 +7,10 @@
 -- GO
 
 -- Tạo cơ sở dữ liệu
--- CREATE DATABASE UniversityDb;
--- GO
--- USE UniversityDb;
--- GO
+ CREATE DATABASE UniversityDb;
+ GO
+ USE UniversityDb;
+ GO
 
 -- Bảng vai trò người dùng
 CREATE TABLE Roles (
@@ -29,8 +29,12 @@ CREATE TABLE Users (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     Email VARCHAR(100) UNIQUE NOT NULL,
     Password VARCHAR(255) NOT NULL,
-    FullName VARCHAR(100) NOT NULL,
+    FullName NVARCHAR(100) NOT NULL,
+    Gender VARCHAR(10),
     Image VARCHAR(MAX),
+    DateOfBirth DATE,
+    PhoneNumber VARCHAR(20),
+    Address NVARCHAR(255),
     RoleId UNIQUEIDENTIFIER NOT NULL,
     FOREIGN KEY (RoleId) REFERENCES Roles(Id)
 );
@@ -38,7 +42,7 @@ CREATE TABLE Users (
 -- Bảng chuyên ngành
 CREATE TABLE Majors (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    MajorName VARCHAR(100) NOT NULL,
+    MajorName NVARCHAR(100) NOT NULL,
     RequiredCredits INT NOT NULL,
     DepartmentID UNIQUEIDENTIFIER NOT NULL,
     FOREIGN KEY (DepartmentID) REFERENCES Departments(Id)
@@ -78,8 +82,8 @@ CREATE TABLE AdministrativeStaff (
 -- Bảng chính sách học phí
 CREATE TABLE TuitionPolicies (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    PolicyName VARCHAR(100) NOT NULL,
-    Description VARCHAR(MAX),
+    PolicyName NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(MAX),
     Amount DECIMAL(18,2) NOT NULL,
     EffectiveDate DATE NOT NULL,
     ExpirationDate DATE,
@@ -90,10 +94,10 @@ CREATE TABLE TuitionPolicies (
 -- Bảng học bổng
 CREATE TABLE Scholarships (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    ScholarshipName VARCHAR(100) NOT NULL,
-    Description VARCHAR(MAX),
+    ScholarshipName NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(MAX),
     Amount DECIMAL(18,2) NOT NULL,
-    EligibilityCriteria VARCHAR(MAX),
+    EligibilityCriteria NVARCHAR(MAX),
     ApplicationDeadline DATE,
     DepartmentID UNIQUEIDENTIFIER,
     FOREIGN KEY (DepartmentID) REFERENCES Departments(Id)
@@ -102,10 +106,10 @@ CREATE TABLE Scholarships (
 -- Bảng hỗ trợ tài chính
 CREATE TABLE FinancialAids (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    AidName VARCHAR(100) NOT NULL,
-    Description VARCHAR(MAX),
+    AidName NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(MAX),
     Amount DECIMAL(18,2) NOT NULL,
-    EligibilityCriteria VARCHAR(MAX),
+    EligibilityCriteria NVARCHAR(MAX),
     ApplicationDeadline DATE,
     DepartmentID UNIQUEIDENTIFIER,
     FOREIGN KEY (DepartmentID) REFERENCES Departments(Id)
@@ -134,22 +138,22 @@ CREATE TABLE StudentFinancialAids (
 -- Bảng phòng học
 CREATE TABLE Classroom (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    RoomName VARCHAR(50) NOT NULL,
+    RoomName NVARCHAR(50) NOT NULL,
     Capacity INT NOT NULL,
-    Location VARCHAR(100),
-    Status VARCHAR(20) DEFAULT 'Available' CHECK (Status IN ('Available', 'InUse', 'Maintenance')),
-    Equipment VARCHAR(255),
+    Location NVARCHAR(100),
+    Status VARCHAR(20),
+    Equipment NVARCHAR(255),
     CreatedAt DATETIME DEFAULT GETDATE()
 );
 
 -- Bảng môn học
 CREATE TABLE Courses (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    CourseCode VARCHAR(20) UNIQUE NOT NULL,
-    CourseName VARCHAR(100) NOT NULL,
+    CourseCode NVARCHAR(20) UNIQUE NOT NULL,
+    CourseName NVARCHAR(100) NOT NULL,
     Credits INT NOT NULL,
-    Description VARCHAR(MAX),
-    LearningOutcomes VARCHAR(MAX),
+    Description NVARCHAR(MAX),
+    LearningOutcomes NVARCHAR(MAX),
     DepartmentID UNIQUEIDENTIFIER NOT NULL,
     FOREIGN KEY (DepartmentID) REFERENCES Departments(Id)
 );
@@ -176,8 +180,8 @@ CREATE TABLE CourseCorequisites (
 CREATE TABLE CourseSyllabi (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     CourseID UNIQUEIDENTIFIER NOT NULL,
-    SyllabusContent VARCHAR(MAX),
-    Version VARCHAR(50),
+    SyllabusContent NVARCHAR(MAX),
+    Version NVARCHAR(50),
     CreatedDate DATETIME NOT NULL DEFAULT GETDATE(),
     UpdatedDate DATETIME,
     FOREIGN KEY (CourseID) REFERENCES Courses(Id)
@@ -200,10 +204,10 @@ CREATE TABLE StudentTuition (
     TotalAmount DECIMAL(18,2) NOT NULL,
     AmountPaid DECIMAL(18,2) NOT NULL DEFAULT 0,
     DiscountAmount DECIMAL(18,2) DEFAULT 0,
-    PaymentStatus VARCHAR(20) NOT NULL CHECK (PaymentStatus IN ('Unpaid', 'Partial', 'Paid', 'Exempted')),
-    PaymentDueDate DATE NOT NULL,
-    PaymentDate DATETIME,
-    Notes VARCHAR(MAX),
+    PaymentStatus NVARCHAR(20) NOT NULL,
+    PaymentDueDate DATE NOT NULL,   
+    PaymentDate DATETIME,   
+    Notes NVARCHAR(MAX), 
     FOREIGN KEY (StudentID) REFERENCES Students(Id),
     FOREIGN KEY (SemesterID) REFERENCES Semesters(Id),
     FOREIGN KEY (TuitionPolicyID) REFERENCES TuitionPolicies(Id)
@@ -214,7 +218,7 @@ CREATE TABLE ClassSections (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     CourseID UNIQUEIDENTIFIER NOT NULL,
     SemesterID UNIQUEIDENTIFIER NOT NULL,
-    ProfessorID UNIQUEIDENTIFIER NOT NULL,
+    ProfessorID UNIQUEIDENTIFIER,
     ClassroomID UNIQUEIDENTIFIER,
     Capacity INT NOT NULL,
     IsOnline BIT DEFAULT 0,
@@ -240,7 +244,7 @@ CREATE TABLE CourseRegistrations (
     StudentID UNIQUEIDENTIFIER NOT NULL,
     ClassSectionID UNIQUEIDENTIFIER NOT NULL,
     RegistrationDate DATETIME NOT NULL,
-    Status VARCHAR(20) NOT NULL CHECK (Status IN ('Registered', 'Waitlisted', 'Dropped')),
+    Status VARCHAR(20) NOT NULL,
     FOREIGN KEY (StudentID) REFERENCES Students(Id),
     FOREIGN KEY (ClassSectionID) REFERENCES ClassSections(Id)
 );
@@ -258,8 +262,8 @@ CREATE TABLE Grades (
 CREATE TABLE MidtermEvaluations (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     CourseRegistrationID UNIQUEIDENTIFIER NOT NULL,
-    Status VARCHAR(50) NOT NULL,
-    Recommendation VARCHAR(MAX),
+    Status NVARCHAR(50) NOT NULL,
+    Recommendation NVARCHAR(MAX),
     FOREIGN KEY (CourseRegistrationID) REFERENCES CourseRegistrations(Id)
 );
 
@@ -267,10 +271,10 @@ CREATE TABLE MidtermEvaluations (
 CREATE TABLE ServiceRequests (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     StudentID UNIQUEIDENTIFIER NOT NULL,
-    ServiceType VARCHAR(50) NOT NULL CHECK (ServiceType IN ('Certificate', 'Transcript', 'LeaveOfAbsence', 'CreditOverload', 'MajorChange', 'AddDrop', 'Withdraw', 'Graduation', 'AcademicAdvising', 'ClassroomBorrow', 'TemporaryWithdraw', 'PermanentWithdraw', 'Other')),
+    ServiceType NVARCHAR(50) NOT NULL,
     RequestDate DATETIME NOT NULL,
-    Status VARCHAR(20) NOT NULL CHECK (Status IN ('Pending', 'Approved', 'Denied')),
-    Details VARCHAR(MAX),
+    Status NVARCHAR(20) NOT NULL,
+    Details NVARCHAR(MAX),
     FOREIGN KEY (StudentID) REFERENCES Students(Id)
 );
 
@@ -280,7 +284,7 @@ CREATE TABLE CourseEvaluations (
     ClassSectionID UNIQUEIDENTIFIER NOT NULL,
     StudentID UNIQUEIDENTIFIER NOT NULL,
     Rating INT NOT NULL,
-    Comments VARCHAR(MAX),
+    Comments NVARCHAR(MAX),
     EvaluationDate DATETIME NOT NULL,
     FOREIGN KEY (ClassSectionID) REFERENCES ClassSections(Id),
     FOREIGN KEY (StudentID) REFERENCES Students(Id)
@@ -383,7 +387,7 @@ INSERT INTO ServiceRequests (StudentID, ServiceType, RequestDate, Status, Detail
 ('60000000-0000-0000-0000-000000000001', 'Transcript', '2023-10-01', 'Approved', 'Yêu cầu bảng điểm chính thức');
 
 INSERT INTO CourseEvaluations (ClassSectionID, StudentID, Rating, Comments, EvaluationDate) VALUES
-('G0000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 4, 'Môn học rất hữu ích!', '2023-12-15');
+('23000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 4, 'Môn học rất hữu ích!', '2023-12-15');
 
 INSERT INTO MajorCourses (MajorID, CourseID) VALUES
 ('50000000-0000-0000-0000-000000000001', 'D0000000-0000-0000-0000-000000000001'),

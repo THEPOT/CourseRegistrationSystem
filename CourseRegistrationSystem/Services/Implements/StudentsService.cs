@@ -1410,6 +1410,141 @@ namespace CourseRegistration_API.Services.Implements
 			}).ToList();
 		}
 
+		public async Task<StudentDetailedInfoResponse> GetStudentDetailedInformation(Guid studentId)
+		{
+			// Lấy thông tin sinh viên với tất cả các related data cần thiết
+			var student = await _unitOfWork.GetRepository<Student>()
+				.SingleOrDefaultAsync(
+					predicate: s => s.Id == studentId,
+					include: q => q
+						.Include(s => s.User)
+						.Include(s => s.Major)
+							.ThenInclude(m => m.Courses)
+						.Include(s => s.StudentScholarships)
+							.ThenInclude(ss => ss.Scholarship)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(cr => cr.ClassSection)
+								.ThenInclude(cs => cs.Course)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(cr => cr.Grades)
+						.Include(s => s.StudentTuitions)
+							.ThenInclude(st => st.TuitionPolicy)
+				);
 
+			if (student == null)
+				return null;
+
+			// Tính toán số tín chỉ đã hoàn thành
+            var completedCourses = student.CourseRegistrations
+                .Where(cr => cr.Grades.Any(g => g.QualityPoints >= 1.0m))
+                .Select(cr => cr.ClassSection.Course)
+                .Distinct();
+			
+			var completedCredits = completedCourses.Sum(c => c.Credits);
+			var completionPercentage = student.Major.RequiredCredits > 0 
+				? (decimal)completedCredits / student.Major.RequiredCredits * 100 
+				: 0;
+
+			// Lấy học bổng hiện tại
+			var currentScholarship = student.StudentScholarships
+				.OrderByDescending(ss => ss.AwardDate)
+				.FirstOrDefault();
+
+			// Lấy học phí kỳ hiện tại
+			var currentTuition = student.StudentTuitions
+				.OrderByDescending(st => st.Semester.StartDate)
+				.FirstOrDefault();
+
+			return new StudentDetailedInfoResponse
+			{
+				// Tab 1: Thông tin cá nhân
+				Mssv = student.Mssv,
+				FullName = student.User.FullName,
+				Email = student.User.Email,
+				PhoneNumber = student.User.PhoneNumber,
+				DateOfBirth = student.User.DateOfBirth.HasValue 
+					? DateTime.Parse(student.User.DateOfBirth.Value.ToString())
+					: DateTime.MinValue,
+				Address = student.User.Address,
+				EnrollmentDate = student.EnrollmentDate,
+				Status = student.AdmissionStatus,
+				ImageUrl = student.User.Image,
+
+				// Tab 2: Học bổng
+				CurrentScholarship = currentScholarship != null ? new CurrentScholarship
+				{
+					ScholarshipName = currentScholarship.Scholarship.ScholarshipName,
+					Amount = currentScholarship.Scholarship.Amount,
+					StartDate = currentScholarship.AwardDate,
+				} : null,
+				ScholarshipHistory = student.StudentScholarships
+					.Select(ss => new ScholarshipHistory
+					{
+						ScholarshipName = ss.Scholarship.ScholarshipName,
+						Amount = ss.Scholarship.Amount,
+						StartDate = ss.AwardDate,
+					}).ToList(),
+
+				// Tab 3: Ngành học
+				MajorInfo = new MajorInfo
+				{
+					MajorId = student.Major.Id,
+					MajorCode = student.Major.MajorName,
+					RequiredCredits = student.Major.RequiredCredits,
+					CompletedCredits = completedCredits,
+					CompletionPercentage = Math.Round(completionPercentage, 2),
+					Courses = student.Major.Courses.Select(c => new CourseStatus
+					{
+						CourseCode = c.CourseCode,
+						CourseName = c.CourseName,
+						Credits = c.Credits,
+						Status = GetCourseStatus(student.CourseRegistrations, c.Id),
+						Grade = GetCourseGrade(student.CourseRegistrations, c.Id)
+					}).ToList()
+				},
+
+				// Tab 4: Học phí
+				CurrentTuition = currentTuition != null ? new CurrentTuition
+				{
+					TuitionName = currentTuition.TuitionPolicy.PolicyName,
+					Amount = currentTuition.TotalAmount,
+					DueDate = currentTuition.PaymentDueDate,
+					Status = currentTuition.PaymentStatus
+				} : null,
+				TuitionHistory = student.StudentTuitions
+					.Select(st => new TuitionHistory
+					{
+						TuitionName = st.TuitionPolicy.PolicyName,
+						Amount = st.TotalAmount,
+						DueDate = st.PaymentDueDate,
+						Status = st.PaymentStatus
+					}).ToList()
+			};
+		}
+
+		private string GetCourseStatus(ICollection<CourseRegistration> registrations, Guid courseId)
+		{
+			var registration = registrations
+				.FirstOrDefault(r => r.ClassSection.CourseId == courseId);
+			
+			if (registration == null)
+				return "Chưa học";
+			
+			if (registration.Status == "Dropped")
+				return "Đã hủy";
+			
+            var grade = registration.Grades.MaxBy(g => g.QualityPoints)?.QualityPoints;
+            if (grade == null)
+                return "Đang học";
+			
+			return grade >= 5.0m ? "Đã hoàn thành" : "Chưa đạt";
+		}
+
+        private decimal? GetCourseGrade(ICollection<CourseRegistration> registrations, Guid courseId)
+        {
+            return registrations
+                .FirstOrDefault(r => r.ClassSection.CourseId == courseId)
+                ?.Grades.MaxBy(g => g.QualityPoints)?.QualityPoints;
+        }
 	}
 }

@@ -11,7 +11,7 @@ public partial class ClassSection
 
     public Guid SemesterId { get; set; }
 
-    public Guid ProfessorId { get; set; }
+    public Guid? ProfessorId { get; set; }
 
     public Guid? ClassroomId { get; set; }
 
@@ -29,7 +29,7 @@ public partial class ClassSection
 
     public virtual ICollection<CourseRegistration> CourseRegistrations { get; set; } = new List<CourseRegistration>();
 
-    public virtual Professor Professor { get; set; } = null!;
+    public virtual Professor? Professor { get; set; }
 
     public virtual Semester Semester { get; set; } = null!;
 }

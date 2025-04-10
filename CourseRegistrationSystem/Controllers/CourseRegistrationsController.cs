@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace CourseRegistration_API.Controllers
 {
 	[ApiController]
-	[Route("api/[controller]")]
+	[Route("api/v1/[controller]")]
 	public class CourseRegistrationsController : ControllerBase
 	{
 		private readonly ICourseRegistrationService _registrationService;
@@ -18,15 +18,6 @@ namespace CourseRegistration_API.Controllers
 		public CourseRegistrationsController(ICourseRegistrationService registrationService)
 		{
 			_registrationService = registrationService;
-		}
-
-		[HttpGet("terms/{termId}/courses")]
-		[Authorize(Roles = "Student,Staff,Lecturer,Admin")]
-		public async Task<ActionResult<List<CourseOfferingResponse>>> GetTermCourseOfferings(
-			Guid termId, [FromQuery] Guid? studentId = null)
-		{
-			var offerings = await _registrationService.GetTermCourseOfferings(termId, studentId);
-			return Ok(offerings);
 		}
 
 		[HttpGet("students/{studentId}/prerequisites/{courseId}")]
@@ -113,6 +104,21 @@ namespace CourseRegistration_API.Controllers
 		{
 			var students = await _registrationService.GetCourseStudents(courseOfferingId);
 			return Ok(students);
+		}
+
+		[HttpGet("available-courses")]
+		[Authorize(Roles = "Student")]
+		public async Task<ActionResult<List<AvailableCourseResponse>>> GetAvailableCourseOfferings()
+		{
+			try 
+			{
+				var offerings = await _registrationService.GetAvailableCourseOfferings();
+				return Ok(offerings);
+			}
+			catch (BadHttpRequestException ex)
+			{
+				return BadRequest(ex.Message);
+			}
 		}
 	}
 }

@@ -5,7 +5,7 @@ namespace CourseRegistration_API.Services.Interface
 {
 	public interface ICourseRegistrationService
 	{
-		Task<List<CourseOfferingResponse>> GetTermCourseOfferings(Guid termId, Guid? studentId = null);
+		Task<List<AvailableCourseResponse>> GetAvailableCourseOfferings();
 		Task<bool> CheckPrerequisites(Guid studentId, Guid courseId);
 		Task<List<CourseRegistrationSummaryResponse>> GetRegistrationSummaryByTerm(Guid termId);
 		Task<bool> RegisterCourse(CourseRegistrationRequest request);

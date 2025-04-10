@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace CourseRegistration_API.Controllers
 {
 	[ApiController]
-	[Route("api/[controller]")]
+	[Route("api/v1/[controller]")]
 	public class StudentsController : ControllerBase
 	{
 		private readonly IStudentsService _studentsService;
@@ -331,6 +331,42 @@ namespace CourseRegistration_API.Controllers
 			return Ok(students);
 		}
 
+		[HttpGet("me")]
+		[Authorize(Roles = "Student")]
+		public async Task<ActionResult<StudentInfoResponse>> GetMyInformation()
+		{
+			// Lấy ID của học sinh từ token
+			var studentIdClaim = User.FindFirst("studentId");
+			if (studentIdClaim == null || !Guid.TryParse(studentIdClaim.Value, out Guid studentId))
+			{
+				return BadRequest("Invalid student token");
+			}
+
+			var studentInfo = await _studentsService.GetStudentInformationById(studentId);
+
+			if (studentInfo == null)
+				return NotFound();
+
+			return Ok(studentInfo);
+		}
+
+		[HttpGet("me/detailed")]
+		[Authorize(Roles = "Student")]
+		public async Task<ActionResult<StudentDetailedInfoResponse>> GetMyDetailedInformation()
+		{
+			var studentIdClaim = User.FindFirst("studentId");
+			if (studentIdClaim == null || !Guid.TryParse(studentIdClaim.Value, out Guid studentId))
+			{
+				return BadRequest("Invalid student token");
+			}
+
+			var detailedInfo = await _studentsService.GetStudentDetailedInformation(studentId);
+
+			if (detailedInfo == null)
+				return NotFound();
+
+			return Ok(detailedInfo);
+		}
 
 	}
 }
