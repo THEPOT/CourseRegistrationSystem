@@ -24,10 +24,10 @@ namespace CourseRegistration_API.Services.Implements
 		{
 			var courseOfferings = await _unitOfWork.GetRepository<ClassSection>()
 				.GetListAsync(
-					predicate: co => co.SemesterId == termId, // Change TermId to SemesterId
+					predicate: co => co.SemesterId == termId,
 					include: q => q
 						.Include(co => co.Course)
-						.Include(co => co.Professor) // Change Lecturer to Professor
+						.Include(co => co.Professor)
 							.ThenInclude(l => l.User)
 				);
 
@@ -36,8 +36,8 @@ namespace CourseRegistration_API.Services.Implements
 				CourseOfferingId = co.Id,
 				CourseCode = co.Course.CourseCode,
 				CourseName = co.Course.CourseName,
-				ProfessorId = co.ProfessorId, // Change LecturerId to ProfessorId
-				ProfessorName = co.Professor.User.FullName // Change Lecturer to Professor
+				ProfessorId = co.ProfessorId ?? Guid.Empty, 
+				ProfessorName = co.Professor.User.FullName
 			}).ToList();
 		}
 

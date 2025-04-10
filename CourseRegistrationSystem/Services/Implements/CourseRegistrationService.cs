@@ -21,61 +21,65 @@ namespace CourseRegistration_API.Services.Implements
 		{
 		}
 
-		public async Task<List<CourseOfferingResponse>> GetTermCourseOfferings(Guid termId, Guid? studentId = null)
+		public async Task<List<AvailableCourseResponse>> GetAvailableCourseOfferings()
 		{
-			// Get all course offerings for the term
-			var classSections = await _unitOfWork.GetRepository<ClassSection>()
-				.GetListAsync(
-					predicate: co => co.SemesterId == termId,
-					include: q => q
-						.Include(co => co.Course)
-						.Include(co => co.Professor)
-							.ThenInclude(l => l.User)
-						.Include(co => co.CourseRegistrations)
+			var studentIdClaim = _httpContextAccessor.HttpContext.User.FindFirst("studentId");
+			if (studentIdClaim == null || !Guid.TryParse(studentIdClaim.Value, out Guid studentId))
+			{
+				throw new BadHttpRequestException("Invalid student token");
+			}
+
+			// Get student's major and courses
+			var student = await _unitOfWork.GetRepository<Student>()
+				.SingleOrDefaultAsync(
+					predicate: s => s.Id == studentId,
+					include: q => q.Include(s => s.Major)
+								  .ThenInclude(m => m.Courses)
 				);
 
+			if (student == null)
+				return new List<AvailableCourseResponse>();
+
+			// Get current date in Vietnam timezone
+			var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+			var currentDateVN = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone).Date;
+			_logger.LogInformation($"Current date in VN timezone: {currentDateVN}");
+
+			// Get current term
+			var currentTerm = await _unitOfWork.GetRepository<Semester>()
+				.SingleOrDefaultAsync(
+					predicate: s => s.StartDate <= DateOnly.FromDateTime(currentDateVN) && 
+								   s.EndDate >= DateOnly.FromDateTime(currentDateVN)
+				);
+			_logger.LogInformation($"Current term: {currentTerm?.SemesterName ?? "None"}");
+
+			if (currentTerm == null)
+				return new List<AvailableCourseResponse>();
+
+			var classSections = await _unitOfWork.GetRepository<ClassSection>()
+				.GetListAsync(
+					predicate: cs => cs.SemesterId == currentTerm.Id && 
+									student.Major.Courses.Select(c => c.Id).Contains(cs.CourseId),
+					include: q => q
+						.Include(cs => cs.Course)
+						.Include(cs => cs.CourseRegistrations)
+						.Include(cs => cs.ClassSectionSchedules)
+				);
+			_logger.LogInformation($"Found {classSections.Count} course offerings");
+
 			// Create the response list
-			var response = classSections.Select(co => new CourseOfferingResponse
+			var response = classSections.Select(cs => new AvailableCourseResponse
 			{
-				CourseOfferingId = co.Id,
-				CourseId = co.CourseId,
-				CourseCode = co.Course.CourseCode,
-				CourseName = co.Course.CourseName,
-				Credits = co.Course.Credits,
-				LecturerId = co.ProfessorId,
-				LecturerName = co.Professor.User.FullName,
-				Classroom = co.Classroom?.RoomName ?? "Online",
-				Schedule = GetScheduleString(co),
-				Capacity = co.Capacity,
-				RegisteredCount = co.CourseRegistrations?.Count ?? 0,
-				PrerequisiteStatus = "Not Required", // Default value, will be updated if studentId is provided
-				ConflictingCourses = new List<string>()
-			}).ToList();
-
-			// If a student ID is provided, check prerequisites and scheduling conflicts
-			if (studentId.HasValue)
-			{
-				// Get student's passed courses
-				var passedCourses = await GetStudentPassedCourses(studentId.Value);
-
-				// Get student's current registrations for this term
-				var currentRegistrations = await _unitOfWork.GetRepository<CourseRegistration>()
-					.GetListAsync(
-						predicate: r => r.StudentId == studentId.Value &&
-									  r.ClassSection.SemesterId == termId,
-						include: q => q.Include(r => r.ClassSection)
-									  .ThenInclude(co => co.Course)
-					);
-
-				foreach (var offering in response)
-				{
-					// Check prerequisites
-					offering.PrerequisiteStatus = await CheckPrerequisiteStatus(studentId.Value, offering.CourseId, passedCourses);
-
-					// Check for schedule conflicts
-					offering.ConflictingCourses = GetScheduleConflicts(offering, currentRegistrations);
-				}
-			}
+				CourseCode = cs.Course.CourseCode,
+				CourseName = cs.Course.CourseName,
+				ClassName = $"{cs.Course.CourseCode}-{cs.ClassroomId}",
+				Capacity = cs.Capacity,
+				AvailableSlots = cs.Capacity - (cs.CourseRegistrations?.Count ?? 0),
+				Schedule = GetScheduleString(cs),
+				ProfessorId = cs.ProfessorId  // This will now work with nullable Guid
+			})
+			.OrderBy(c => c.CourseCode)
+			.ToList();
 
 			return response;
 		}
@@ -377,7 +381,7 @@ namespace CourseRegistration_API.Services.Implements
 				CourseCode = r.ClassSection.Course.CourseCode,
 				CourseName = r.ClassSection.Course.CourseName,
 				Credits = r.ClassSection.Course.Credits,
-				LecturerId = r.ClassSection.ProfessorId,
+				ProfessorId = r.ClassSection.ProfessorId ?? Guid.Empty,
 				LecturerName = r.ClassSection.Professor.User.FullName,
 				Classroom = r.ClassSection.Classroom?.RoomName ?? "Online",
 				Schedule = GetScheduleString(r.ClassSection),

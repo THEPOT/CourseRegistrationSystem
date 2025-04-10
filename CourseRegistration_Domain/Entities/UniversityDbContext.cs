@@ -71,7 +71,7 @@ public partial class UniversityDbContext : DbContext
     {
         modelBuilder.Entity<AdministrativeStaff>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Administ__3214EC074ED00E1A");
+            entity.HasKey(e => e.Id).HasName("PK__Administ__3214EC07110B788D");
 
             entity.ToTable("AdministrativeStaff");
 
@@ -92,7 +92,7 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<ClassSection>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__ClassSec__3214EC07298E451C");
+            entity.HasKey(e => e.Id).HasName("PK__ClassSec__3214EC07445812CF");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.ClassroomId).HasColumnName("ClassroomID");
@@ -103,27 +103,26 @@ public partial class UniversityDbContext : DbContext
 
             entity.HasOne(d => d.Classroom).WithMany(p => p.ClassSections)
                 .HasForeignKey(d => d.ClassroomId)
-                .HasConstraintName("FK__ClassSect__Class__10566F31");
+                .HasConstraintName("FK__ClassSect__Class__0D7A0286");
 
             entity.HasOne(d => d.Course).WithMany(p => p.ClassSections)
                 .HasForeignKey(d => d.CourseId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClassSect__Cours__0D7A0286");
+                .HasConstraintName("FK__ClassSect__Cours__0A9D95DB");
 
             entity.HasOne(d => d.Professor).WithMany(p => p.ClassSections)
                 .HasForeignKey(d => d.ProfessorId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClassSect__Profe__0F624AF8");
+                .HasConstraintName("FK__ClassSect__Profe__0C85DE4D");
 
             entity.HasOne(d => d.Semester).WithMany(p => p.ClassSections)
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClassSect__Semes__0E6E26BF");
+                .HasConstraintName("FK__ClassSect__Semes__0B91BA14");
         });
 
         modelBuilder.Entity<ClassSectionSchedule>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__ClassSec__3214EC07F01EF328");
+            entity.HasKey(e => e.Id).HasName("PK__ClassSec__3214EC0712BFD349");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.ClassSectionId).HasColumnName("ClassSectionID");
@@ -134,12 +133,12 @@ public partial class UniversityDbContext : DbContext
             entity.HasOne(d => d.ClassSection).WithMany(p => p.ClassSectionSchedules)
                 .HasForeignKey(d => d.ClassSectionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ClassSect__Class__151B244E");
+                .HasConstraintName("FK__ClassSect__Class__123EB7A3");
         });
 
         modelBuilder.Entity<Classroom>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Classroo__3214EC072EE467B2");
+            entity.HasKey(e => e.Id).HasName("PK__Classroo__3214EC07BF78B0DD");
 
             entity.ToTable("Classroom");
 
@@ -147,42 +146,29 @@ public partial class UniversityDbContext : DbContext
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime");
-            entity.Property(e => e.Equipment)
-                .HasMaxLength(255)
-                .IsUnicode(false);
-            entity.Property(e => e.Location)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-            entity.Property(e => e.RoomName)
-                .HasMaxLength(50)
-                .IsUnicode(false);
+            entity.Property(e => e.Equipment).HasMaxLength(255);
+            entity.Property(e => e.Location).HasMaxLength(100);
+            entity.Property(e => e.RoomName).HasMaxLength(50);
             entity.Property(e => e.Status)
                 .HasMaxLength(20)
-                .IsUnicode(false)
-                .HasDefaultValue("Available");
+                .IsUnicode(false);
         });
 
         modelBuilder.Entity<Course>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Courses__3214EC07B90CF3FA");
+            entity.HasKey(e => e.Id).HasName("PK__Courses__3214EC077A949D04");
 
-            entity.HasIndex(e => e.CourseCode, "UQ__Courses__FC00E000F4EE7E49").IsUnique();
+            entity.HasIndex(e => e.CourseCode, "UQ__Courses__FC00E000C9449B35").IsUnique();
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
-            entity.Property(e => e.CourseCode)
-                .HasMaxLength(20)
-                .IsUnicode(false);
-            entity.Property(e => e.CourseName)
-                .HasMaxLength(100)
-                .IsUnicode(false);
+            entity.Property(e => e.CourseCode).HasMaxLength(20);
+            entity.Property(e => e.CourseName).HasMaxLength(100);
             entity.Property(e => e.DepartmentId).HasColumnName("DepartmentID");
-            entity.Property(e => e.Description).IsUnicode(false);
-            entity.Property(e => e.LearningOutcomes).IsUnicode(false);
 
             entity.HasOne(d => d.Department).WithMany(p => p.Courses)
                 .HasForeignKey(d => d.DepartmentId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Courses__Departm__70DDC3D8");
+                .HasConstraintName("FK__Courses__Departm__6EF57B66");
 
             entity.HasMany(d => d.CorequisiteCourses).WithMany(p => p.Courses)
                 .UsingEntity<Dictionary<string, object>>(
@@ -190,14 +176,14 @@ public partial class UniversityDbContext : DbContext
                     r => r.HasOne<Course>().WithMany()
                         .HasForeignKey("CorequisiteCourseId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__CourseCor__Coreq__787EE5A0"),
+                        .HasConstraintName("FK__CourseCor__Coreq__76969D2E"),
                     l => l.HasOne<Course>().WithMany()
                         .HasForeignKey("CourseId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__CourseCor__Cours__778AC167"),
+                        .HasConstraintName("FK__CourseCor__Cours__75A278F5"),
                     j =>
                     {
-                        j.HasKey("CourseId", "CorequisiteCourseId").HasName("PK__CourseCo__BE20E9E61063E3E0");
+                        j.HasKey("CourseId", "CorequisiteCourseId").HasName("PK__CourseCo__BE20E9E6D9E6BBA6");
                         j.ToTable("CourseCorequisites");
                         j.IndexerProperty<Guid>("CourseId").HasColumnName("CourseID");
                         j.IndexerProperty<Guid>("CorequisiteCourseId").HasColumnName("CorequisiteCourseID");
@@ -209,14 +195,14 @@ public partial class UniversityDbContext : DbContext
                     r => r.HasOne<Course>().WithMany()
                         .HasForeignKey("CourseId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__CourseCor__Cours__778AC167"),
+                        .HasConstraintName("FK__CourseCor__Cours__75A278F5"),
                     l => l.HasOne<Course>().WithMany()
                         .HasForeignKey("CorequisiteCourseId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__CourseCor__Coreq__787EE5A0"),
+                        .HasConstraintName("FK__CourseCor__Coreq__76969D2E"),
                     j =>
                     {
-                        j.HasKey("CourseId", "CorequisiteCourseId").HasName("PK__CourseCo__BE20E9E61063E3E0");
+                        j.HasKey("CourseId", "CorequisiteCourseId").HasName("PK__CourseCo__BE20E9E6D9E6BBA6");
                         j.ToTable("CourseCorequisites");
                         j.IndexerProperty<Guid>("CourseId").HasColumnName("CourseID");
                         j.IndexerProperty<Guid>("CorequisiteCourseId").HasColumnName("CorequisiteCourseID");
@@ -228,14 +214,14 @@ public partial class UniversityDbContext : DbContext
                     r => r.HasOne<Course>().WithMany()
                         .HasForeignKey("CourseId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__CoursePre__Cours__73BA3083"),
+                        .HasConstraintName("FK__CoursePre__Cours__71D1E811"),
                     l => l.HasOne<Course>().WithMany()
                         .HasForeignKey("PrerequisiteCourseId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__CoursePre__Prere__74AE54BC"),
+                        .HasConstraintName("FK__CoursePre__Prere__72C60C4A"),
                     j =>
                     {
-                        j.HasKey("CourseId", "PrerequisiteCourseId").HasName("PK__CoursePr__E09340CD5DFF0859");
+                        j.HasKey("CourseId", "PrerequisiteCourseId").HasName("PK__CoursePr__E09340CD9DABCBD5");
                         j.ToTable("CoursePrerequisites");
                         j.IndexerProperty<Guid>("CourseId").HasColumnName("CourseID");
                         j.IndexerProperty<Guid>("PrerequisiteCourseId").HasColumnName("PrerequisiteCourseID");
@@ -247,14 +233,14 @@ public partial class UniversityDbContext : DbContext
                     r => r.HasOne<Course>().WithMany()
                         .HasForeignKey("PrerequisiteCourseId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__CoursePre__Prere__74AE54BC"),
+                        .HasConstraintName("FK__CoursePre__Prere__72C60C4A"),
                     l => l.HasOne<Course>().WithMany()
                         .HasForeignKey("CourseId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__CoursePre__Cours__73BA3083"),
+                        .HasConstraintName("FK__CoursePre__Cours__71D1E811"),
                     j =>
                     {
-                        j.HasKey("CourseId", "PrerequisiteCourseId").HasName("PK__CoursePr__E09340CD5DFF0859");
+                        j.HasKey("CourseId", "PrerequisiteCourseId").HasName("PK__CoursePr__E09340CD9DABCBD5");
                         j.ToTable("CoursePrerequisites");
                         j.IndexerProperty<Guid>("CourseId").HasColumnName("CourseID");
                         j.IndexerProperty<Guid>("PrerequisiteCourseId").HasColumnName("PrerequisiteCourseID");
@@ -263,28 +249,27 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<CourseEvaluation>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__CourseEv__3214EC07BC8F95AD");
+            entity.HasKey(e => e.Id).HasName("PK__CourseEv__3214EC076F94292C");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.ClassSectionId).HasColumnName("ClassSectionID");
-            entity.Property(e => e.Comments).IsUnicode(false);
             entity.Property(e => e.EvaluationDate).HasColumnType("datetime");
             entity.Property(e => e.StudentId).HasColumnName("StudentID");
 
             entity.HasOne(d => d.ClassSection).WithMany(p => p.CourseEvaluations)
                 .HasForeignKey(d => d.ClassSectionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__CourseEva__Class__2CF2ADDF");
+                .HasConstraintName("FK__CourseEva__Class__2739D489");
 
             entity.HasOne(d => d.Student).WithMany(p => p.CourseEvaluations)
                 .HasForeignKey(d => d.StudentId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__CourseEva__Stude__2DE6D218");
+                .HasConstraintName("FK__CourseEva__Stude__282DF8C2");
         });
 
         modelBuilder.Entity<CourseRegistration>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__CourseRe__3214EC07FD4CD4D4");
+            entity.HasKey(e => e.Id).HasName("PK__CourseRe__3214EC07FD84D7CD");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.ClassSectionId).HasColumnName("ClassSectionID");
@@ -297,40 +282,37 @@ public partial class UniversityDbContext : DbContext
             entity.HasOne(d => d.ClassSection).WithMany(p => p.CourseRegistrations)
                 .HasForeignKey(d => d.ClassSectionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__CourseReg__Class__1AD3FDA4");
+                .HasConstraintName("FK__CourseReg__Class__17036CC0");
 
             entity.HasOne(d => d.Student).WithMany(p => p.CourseRegistrations)
                 .HasForeignKey(d => d.StudentId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__CourseReg__Stude__19DFD96B");
+                .HasConstraintName("FK__CourseReg__Stude__160F4887");
         });
 
         modelBuilder.Entity<CourseSyllabus>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__CourseSy__3214EC0756B75525");
+            entity.HasKey(e => e.Id).HasName("PK__CourseSy__3214EC07A907D901");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CourseId).HasColumnName("CourseID");
             entity.Property(e => e.CreatedDate)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime");
-            entity.Property(e => e.SyllabusContent).IsUnicode(false);
             entity.Property(e => e.UpdatedDate).HasColumnType("datetime");
-            entity.Property(e => e.Version)
-                .HasMaxLength(50)
-                .IsUnicode(false);
+            entity.Property(e => e.Version).HasMaxLength(50);
 
             entity.HasOne(d => d.Course).WithMany(p => p.CourseSyllabi)
                 .HasForeignKey(d => d.CourseId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__CourseSyl__Cours__7D439ABD");
+                .HasConstraintName("FK__CourseSyl__Cours__7B5B524B");
         });
 
         modelBuilder.Entity<Department>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Departme__3214EC07731F1E59");
+            entity.HasKey(e => e.Id).HasName("PK__Departme__3214EC07BCD57E06");
 
-            entity.HasIndex(e => e.DepartmentName, "UQ__Departme__D949CC346CF3D5A4").IsUnique();
+            entity.HasIndex(e => e.DepartmentName, "UQ__Departme__D949CC34AFE0707A").IsUnique();
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.DepartmentName)
@@ -340,16 +322,12 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<FinancialAid>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Financia__3214EC07B5FAB6EB");
+            entity.HasKey(e => e.Id).HasName("PK__Financia__3214EC07CD752F94");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
-            entity.Property(e => e.AidName)
-                .HasMaxLength(100)
-                .IsUnicode(false);
+            entity.Property(e => e.AidName).HasMaxLength(100);
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.DepartmentId).HasColumnName("DepartmentID");
-            entity.Property(e => e.Description).IsUnicode(false);
-            entity.Property(e => e.EligibilityCriteria).IsUnicode(false);
 
             entity.HasOne(d => d.Department).WithMany(p => p.FinancialAids)
                 .HasForeignKey(d => d.DepartmentId)
@@ -358,7 +336,7 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<Grade>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Grades__3214EC07DA914A10");
+            entity.HasKey(e => e.Id).HasName("PK__Grades__3214EC07EB54789C");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CourseRegistrationId).HasColumnName("CourseRegistrationID");
@@ -370,18 +348,16 @@ public partial class UniversityDbContext : DbContext
             entity.HasOne(d => d.CourseRegistration).WithMany(p => p.Grades)
                 .HasForeignKey(d => d.CourseRegistrationId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Grades__CourseRe__1F98B2C1");
+                .HasConstraintName("FK__Grades__CourseRe__1BC821DD");
         });
 
         modelBuilder.Entity<Major>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Majors__3214EC07EC658630");
+            entity.HasKey(e => e.Id).HasName("PK__Majors__3214EC0706A736F8");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.DepartmentId).HasColumnName("DepartmentID");
-            entity.Property(e => e.MajorName)
-                .HasMaxLength(100)
-                .IsUnicode(false);
+            entity.Property(e => e.MajorName).HasMaxLength(100);
 
             entity.HasOne(d => d.Department).WithMany(p => p.Majors)
                 .HasForeignKey(d => d.DepartmentId)
@@ -394,14 +370,14 @@ public partial class UniversityDbContext : DbContext
                     r => r.HasOne<Course>().WithMany()
                         .HasForeignKey("CourseId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__MajorCour__Cours__31B762FC"),
+                        .HasConstraintName("FK__MajorCour__Cours__2BFE89A6"),
                     l => l.HasOne<Major>().WithMany()
                         .HasForeignKey("MajorId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__MajorCour__Major__30C33EC3"),
+                        .HasConstraintName("FK__MajorCour__Major__2B0A656D"),
                     j =>
                     {
-                        j.HasKey("MajorId", "CourseId").HasName("PK__MajorCou__B92A68A906F8AFFF");
+                        j.HasKey("MajorId", "CourseId").HasName("PK__MajorCou__B92A68A96EB66004");
                         j.ToTable("MajorCourses");
                         j.IndexerProperty<Guid>("MajorId").HasColumnName("MajorID");
                         j.IndexerProperty<Guid>("CourseId").HasColumnName("CourseID");
@@ -410,24 +386,21 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<MidtermEvaluation>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__MidtermE__3214EC077F162F23");
+            entity.HasKey(e => e.Id).HasName("PK__MidtermE__3214EC0733774C4A");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CourseRegistrationId).HasColumnName("CourseRegistrationID");
-            entity.Property(e => e.Recommendation).IsUnicode(false);
-            entity.Property(e => e.Status)
-                .HasMaxLength(50)
-                .IsUnicode(false);
+            entity.Property(e => e.Status).HasMaxLength(50);
 
             entity.HasOne(d => d.CourseRegistration).WithMany(p => p.MidtermEvaluations)
                 .HasForeignKey(d => d.CourseRegistrationId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__MidtermEv__Cours__236943A5");
+                .HasConstraintName("FK__MidtermEv__Cours__1F98B2C1");
         });
 
         modelBuilder.Entity<Professor>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Professo__3214EC0750B62E20");
+            entity.HasKey(e => e.Id).HasName("PK__Professo__3214EC07E1AB028E");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.DepartmentId).HasColumnName("DepartmentID");
@@ -446,9 +419,9 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<Role>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Roles__3214EC07BC7755F6");
+            entity.HasKey(e => e.Id).HasName("PK__Roles__3214EC07D0B34CBE");
 
-            entity.HasIndex(e => e.RoleName, "UQ__Roles__8A2B6160EDA843F0").IsUnique();
+            entity.HasIndex(e => e.RoleName, "UQ__Roles__8A2B6160ED56A0DA").IsUnique();
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.RoleName)
@@ -458,16 +431,12 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<Scholarship>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Scholars__3214EC07F3071F8E");
+            entity.HasKey(e => e.Id).HasName("PK__Scholars__3214EC074C907D15");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.DepartmentId).HasColumnName("DepartmentID");
-            entity.Property(e => e.Description).IsUnicode(false);
-            entity.Property(e => e.EligibilityCriteria).IsUnicode(false);
-            entity.Property(e => e.ScholarshipName)
-                .HasMaxLength(100)
-                .IsUnicode(false);
+            entity.Property(e => e.ScholarshipName).HasMaxLength(100);
 
             entity.HasOne(d => d.Department).WithMany(p => p.Scholarships)
                 .HasForeignKey(d => d.DepartmentId)
@@ -476,7 +445,7 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<Semester>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Semester__3214EC0736A66FAD");
+            entity.HasKey(e => e.Id).HasName("PK__Semester__3214EC077B57D336");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.SemesterName)
@@ -486,28 +455,23 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<ServiceRequest>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__ServiceR__3214EC07F942E316");
+            entity.HasKey(e => e.Id).HasName("PK__ServiceR__3214EC079BC47696");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
-            entity.Property(e => e.Details).IsUnicode(false);
             entity.Property(e => e.RequestDate).HasColumnType("datetime");
-            entity.Property(e => e.ServiceType)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.Status)
-                .HasMaxLength(20)
-                .IsUnicode(false);
+            entity.Property(e => e.ServiceType).HasMaxLength(50);
+            entity.Property(e => e.Status).HasMaxLength(20);
             entity.Property(e => e.StudentId).HasColumnName("StudentID");
 
             entity.HasOne(d => d.Student).WithMany(p => p.ServiceRequests)
                 .HasForeignKey(d => d.StudentId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ServiceRe__Stude__29221CFB");
+                .HasConstraintName("FK__ServiceRe__Stude__236943A5");
         });
 
         modelBuilder.Entity<Student>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Students__3214EC0780BC73C6");
+            entity.HasKey(e => e.Id).HasName("PK__Students__3214EC072A641ED3");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.AdmissionStatus)
@@ -533,7 +497,7 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<StudentFinancialAid>(entity =>
         {
-            entity.HasKey(e => new { e.StudentId, e.FinancialAidId }).HasName("PK__StudentF__2337769D58920B1A");
+            entity.HasKey(e => new { e.StudentId, e.FinancialAidId }).HasName("PK__StudentF__2337769D9F585E8C");
 
             entity.Property(e => e.StudentId).HasColumnName("StudentID");
             entity.Property(e => e.FinancialAidId).HasColumnName("FinancialAidID");
@@ -551,7 +515,7 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<StudentScholarship>(entity =>
         {
-            entity.HasKey(e => new { e.StudentId, e.ScholarshipId }).HasName("PK__StudentS__EA96C65814E78592");
+            entity.HasKey(e => new { e.StudentId, e.ScholarshipId }).HasName("PK__StudentS__EA96C6580B50F8F2");
 
             entity.Property(e => e.StudentId).HasColumnName("StudentID");
             entity.Property(e => e.ScholarshipId).HasColumnName("ScholarshipID");
@@ -569,7 +533,7 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<StudentTuition>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__StudentT__3214EC0715CCA30D");
+            entity.HasKey(e => e.Id).HasName("PK__StudentT__3214EC071197F40B");
 
             entity.ToTable("StudentTuition");
 
@@ -578,11 +542,8 @@ public partial class UniversityDbContext : DbContext
             entity.Property(e => e.DiscountAmount)
                 .HasDefaultValue(0m)
                 .HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.Notes).IsUnicode(false);
             entity.Property(e => e.PaymentDate).HasColumnType("datetime");
-            entity.Property(e => e.PaymentStatus)
-                .HasMaxLength(20)
-                .IsUnicode(false);
+            entity.Property(e => e.PaymentStatus).HasMaxLength(20);
             entity.Property(e => e.SemesterId).HasColumnName("SemesterID");
             entity.Property(e => e.StudentId).HasColumnName("StudentID");
             entity.Property(e => e.TotalAmount).HasColumnType("decimal(18, 2)");
@@ -591,30 +552,27 @@ public partial class UniversityDbContext : DbContext
             entity.HasOne(d => d.Semester).WithMany(p => p.StudentTuitions)
                 .HasForeignKey(d => d.SemesterId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__StudentTu__Semes__07C12930");
+                .HasConstraintName("FK__StudentTu__Semes__04E4BC85");
 
             entity.HasOne(d => d.Student).WithMany(p => p.StudentTuitions)
                 .HasForeignKey(d => d.StudentId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__StudentTu__Stude__06CD04F7");
+                .HasConstraintName("FK__StudentTu__Stude__03F0984C");
 
             entity.HasOne(d => d.TuitionPolicy).WithMany(p => p.StudentTuitions)
                 .HasForeignKey(d => d.TuitionPolicyId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__StudentTu__Tuiti__08B54D69");
+                .HasConstraintName("FK__StudentTu__Tuiti__05D8E0BE");
         });
 
         modelBuilder.Entity<TuitionPolicy>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__TuitionP__3214EC079861815C");
+            entity.HasKey(e => e.Id).HasName("PK__TuitionP__3214EC0745FBEDBD");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.Description).IsUnicode(false);
             entity.Property(e => e.MajorId).HasColumnName("MajorID");
-            entity.Property(e => e.PolicyName)
-                .HasMaxLength(100)
-                .IsUnicode(false);
+            entity.Property(e => e.PolicyName).HasMaxLength(100);
 
             entity.HasOne(d => d.Major).WithMany(p => p.TuitionPolicies)
                 .HasForeignKey(d => d.MajorId)
@@ -623,20 +581,25 @@ public partial class UniversityDbContext : DbContext
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Users__3214EC07257C95EB");
+            entity.HasKey(e => e.Id).HasName("PK__Users__3214EC07D9E1546D");
 
-            entity.HasIndex(e => e.Email, "UQ__Users__A9D105342EAFC01C").IsUnique();
+            entity.HasIndex(e => e.Email, "UQ__Users__A9D10534583BA837").IsUnique();
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.Address).HasMaxLength(255);
             entity.Property(e => e.Email)
                 .HasMaxLength(100)
                 .IsUnicode(false);
-            entity.Property(e => e.FullName)
-                .HasMaxLength(100)
+            entity.Property(e => e.FullName).HasMaxLength(100);
+            entity.Property(e => e.Gender)
+                .HasMaxLength(10)
                 .IsUnicode(false);
             entity.Property(e => e.Image).IsUnicode(false);
             entity.Property(e => e.Password)
                 .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.PhoneNumber)
+                .HasMaxLength(20)
                 .IsUnicode(false);
 
             entity.HasOne(d => d.Role).WithMany(p => p.Users)

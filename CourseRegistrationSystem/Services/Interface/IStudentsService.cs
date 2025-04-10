@@ -32,6 +32,7 @@ namespace CourseRegistration_API.Services.Interface
 		Task<List<StudentInfoResponse>> GetStudentsByEnrollmentYear(int year);
 		Task<List<StudentInfoResponse>> GetStudentsByProgram(Guid programId);
 		Task<List<StudentInfoResponse>> GetStudentsByScholarship(string scholarshipName);
+		Task<StudentDetailedInfoResponse> GetStudentDetailedInformation(Guid studentId);
 
 	}
 }

@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CourseRegistration_API.Controllers
 {
 	[ApiController]
-	[Route("api/[controller]")]
+	[Route("api/v1/[controller]")]
 	public class MidtermEvaluationsController : ControllerBase
 	{
 		private readonly IMidtermEvaluationService _evaluationService;

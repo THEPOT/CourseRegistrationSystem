@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 
 namespace CourseRegistration_API.Controllers
 {
+	[ApiController]
+	[Route("api/v1/[controller]")]
 	public class CourseEvaluationsController : ControllerBase
 	{
 		private readonly ICourseEvaluationService _evaluationService;
