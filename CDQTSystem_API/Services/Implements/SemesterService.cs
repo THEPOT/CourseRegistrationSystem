@@ -44,7 +44,11 @@ namespace CDQTSystem_API.Services.Implements
 
         public async Task<List<SemesterResponse>> GetAllSemesters()
         {
-            var semesters = await _unitOfWork.GetRepository<Semester>().GetListAsync();
+            var semesters = await _unitOfWork.GetRepository<Semester>()
+                .GetListAsync(
+                    orderBy: q => q.OrderByDescending(s => s.StartDate)
+                );
+
             return _mapper.Map<List<SemesterResponse>>(semesters);
         }
 

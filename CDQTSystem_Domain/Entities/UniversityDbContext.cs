@@ -81,6 +81,10 @@ public partial class UniversityDbContext : DbContext
 
             entity.ToTable("AdministrativeStaff");
 
+            entity.HasIndex(e => e.DepartmentId, "IX_AdministrativeStaff_DepartmentID");
+
+            entity.HasIndex(e => e.UserId, "IX_AdministrativeStaff_UserID");
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.DepartmentId).HasColumnName("DepartmentID");
             entity.Property(e => e.UserId).HasColumnName("UserID");
@@ -99,6 +103,14 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<ClassSection>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__ClassSec__3214EC07445812CF");
+
+            entity.HasIndex(e => e.ClassroomId, "IX_ClassSections_ClassroomID");
+
+            entity.HasIndex(e => e.CourseId, "IX_ClassSections_CourseID");
+
+            entity.HasIndex(e => e.ProfessorId, "IX_ClassSections_ProfessorID");
+
+            entity.HasIndex(e => e.SemesterId, "IX_ClassSections_SemesterID");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.ClassroomId).HasColumnName("ClassroomID");
@@ -129,6 +141,8 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<ClassSectionSchedule>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__ClassSec__3214EC0712BFD349");
+
+            entity.HasIndex(e => e.ClassSectionId, "IX_ClassSectionSchedules_ClassSectionID");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.ClassSectionId).HasColumnName("ClassSectionID");
@@ -164,6 +178,8 @@ public partial class UniversityDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__Courses__3214EC077A949D04");
 
+            entity.HasIndex(e => e.DepartmentId, "IX_Courses_DepartmentID");
+
             entity.HasIndex(e => e.CourseCode, "UQ__Courses__FC00E000C9449B35").IsUnique();
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
@@ -191,6 +207,7 @@ public partial class UniversityDbContext : DbContext
                     {
                         j.HasKey("CourseId", "CorequisiteCourseId").HasName("PK__CourseCo__BE20E9E6D9E6BBA6");
                         j.ToTable("CourseCorequisites");
+                        j.HasIndex(new[] { "CorequisiteCourseId" }, "IX_CourseCorequisites_CorequisiteCourseID");
                         j.IndexerProperty<Guid>("CourseId").HasColumnName("CourseID");
                         j.IndexerProperty<Guid>("CorequisiteCourseId").HasColumnName("CorequisiteCourseID");
                     });
@@ -210,6 +227,7 @@ public partial class UniversityDbContext : DbContext
                     {
                         j.HasKey("CourseId", "CorequisiteCourseId").HasName("PK__CourseCo__BE20E9E6D9E6BBA6");
                         j.ToTable("CourseCorequisites");
+                        j.HasIndex(new[] { "CorequisiteCourseId" }, "IX_CourseCorequisites_CorequisiteCourseID");
                         j.IndexerProperty<Guid>("CourseId").HasColumnName("CourseID");
                         j.IndexerProperty<Guid>("CorequisiteCourseId").HasColumnName("CorequisiteCourseID");
                     });
@@ -229,6 +247,7 @@ public partial class UniversityDbContext : DbContext
                     {
                         j.HasKey("CourseId", "PrerequisiteCourseId").HasName("PK__CoursePr__E09340CD9DABCBD5");
                         j.ToTable("CoursePrerequisites");
+                        j.HasIndex(new[] { "PrerequisiteCourseId" }, "IX_CoursePrerequisites_PrerequisiteCourseID");
                         j.IndexerProperty<Guid>("CourseId").HasColumnName("CourseID");
                         j.IndexerProperty<Guid>("PrerequisiteCourseId").HasColumnName("PrerequisiteCourseID");
                     });
@@ -248,6 +267,7 @@ public partial class UniversityDbContext : DbContext
                     {
                         j.HasKey("CourseId", "PrerequisiteCourseId").HasName("PK__CoursePr__E09340CD9DABCBD5");
                         j.ToTable("CoursePrerequisites");
+                        j.HasIndex(new[] { "PrerequisiteCourseId" }, "IX_CoursePrerequisites_PrerequisiteCourseID");
                         j.IndexerProperty<Guid>("CourseId").HasColumnName("CourseID");
                         j.IndexerProperty<Guid>("PrerequisiteCourseId").HasColumnName("PrerequisiteCourseID");
                     });
@@ -256,6 +276,10 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<CourseEvaluation>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__CourseEv__3214EC076F94292C");
+
+            entity.HasIndex(e => e.ClassSectionId, "IX_CourseEvaluations_ClassSectionID");
+
+            entity.HasIndex(e => e.StudentId, "IX_CourseEvaluations_StudentID");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.ClassSectionId).HasColumnName("ClassSectionID");
@@ -276,6 +300,12 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<CourseRegistration>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__CourseRe__3214EC07FD84D7CD");
+
+            entity.HasIndex(e => e.ClassSectionId, "IX_CourseRegistrations_ClassSectionID");
+
+            entity.HasIndex(e => e.RegistrationPeriodId, "IX_CourseRegistrations_RegistrationPeriodId");
+
+            entity.HasIndex(e => e.StudentId, "IX_CourseRegistrations_StudentID");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.ClassSectionId).HasColumnName("ClassSectionID");
@@ -308,6 +338,8 @@ public partial class UniversityDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__CourseSy__3214EC07A907D901");
 
+            entity.HasIndex(e => e.CourseId, "IX_CourseSyllabi_CourseID");
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CourseId).HasColumnName("CourseID");
             entity.Property(e => e.CreatedDate)
@@ -338,6 +370,8 @@ public partial class UniversityDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__Financia__3214EC07CD752F94");
 
+            entity.HasIndex(e => e.DepartmentId, "IX_FinancialAids_DepartmentID");
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.AidName).HasMaxLength(100);
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
@@ -351,6 +385,8 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<Grade>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Grades__3214EC07EB54789C");
+
+            entity.HasIndex(e => e.CourseRegistrationId, "IX_Grades_CourseRegistrationID");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CourseRegistrationId).HasColumnName("CourseRegistrationID");
@@ -368,6 +404,8 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<Major>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Majors__3214EC0706A736F8");
+
+            entity.HasIndex(e => e.DepartmentId, "IX_Majors_DepartmentID");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.DepartmentId).HasColumnName("DepartmentID");
@@ -393,6 +431,7 @@ public partial class UniversityDbContext : DbContext
                     {
                         j.HasKey("MajorId", "CourseId").HasName("PK__MajorCou__B92A68A96EB66004");
                         j.ToTable("MajorCourses");
+                        j.HasIndex(new[] { "CourseId" }, "IX_MajorCourses_CourseID");
                         j.IndexerProperty<Guid>("MajorId").HasColumnName("MajorID");
                         j.IndexerProperty<Guid>("CourseId").HasColumnName("CourseID");
                     });
@@ -401,6 +440,8 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<MidtermEvaluation>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__MidtermE__3214EC0733774C4A");
+
+            entity.HasIndex(e => e.CourseRegistrationId, "IX_MidtermEvaluations_CourseRegistrationID");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CourseRegistrationId).HasColumnName("CourseRegistrationID");
@@ -415,6 +456,10 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<Professor>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Professo__3214EC07E1AB028E");
+
+            entity.HasIndex(e => e.DepartmentId, "IX_Professors_DepartmentID");
+
+            entity.HasIndex(e => e.UserId, "IX_Professors_UserID");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.DepartmentId).HasColumnName("DepartmentID");
@@ -434,6 +479,10 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<RegistrationPeriod>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Registra__3214EC071C5822B6");
+
+            entity.HasIndex(e => e.CreatedBy, "IX_RegistrationPeriods_CreatedBy");
+
+            entity.HasIndex(e => e.SemesterId, "IX_RegistrationPeriods_SemesterId");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CreatedDate).HasColumnType("datetime");
@@ -470,6 +519,8 @@ public partial class UniversityDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__Scholars__3214EC074C907D15");
 
+            entity.HasIndex(e => e.DepartmentId, "IX_Scholarships_DepartmentID");
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.DepartmentId).HasColumnName("DepartmentID");
@@ -494,6 +545,8 @@ public partial class UniversityDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__ServiceR__3214EC079BC47696");
 
+            entity.HasIndex(e => e.StudentId, "IX_ServiceRequests_StudentID");
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.RequestDate).HasColumnType("datetime");
             entity.Property(e => e.ServiceType).HasMaxLength(50);
@@ -509,6 +562,10 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<Student>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Students__3214EC072A641ED3");
+
+            entity.HasIndex(e => e.MajorId, "IX_Students_MajorID");
+
+            entity.HasIndex(e => e.UserId, "IX_Students_UserID");
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.AdmissionStatus)
@@ -536,6 +593,8 @@ public partial class UniversityDbContext : DbContext
         {
             entity.HasKey(e => new { e.StudentId, e.FinancialAidId }).HasName("PK__StudentF__2337769D9F585E8C");
 
+            entity.HasIndex(e => e.FinancialAidId, "IX_StudentFinancialAids_FinancialAidID");
+
             entity.Property(e => e.StudentId).HasColumnName("StudentID");
             entity.Property(e => e.FinancialAidId).HasColumnName("FinancialAidID");
 
@@ -553,6 +612,8 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<StudentScholarship>(entity =>
         {
             entity.HasKey(e => new { e.StudentId, e.ScholarshipId }).HasName("PK__StudentS__EA96C6580B50F8F2");
+
+            entity.HasIndex(e => e.ScholarshipId, "IX_StudentScholarships_ScholarshipID");
 
             entity.Property(e => e.StudentId).HasColumnName("StudentID");
             entity.Property(e => e.ScholarshipId).HasColumnName("ScholarshipID");
@@ -574,10 +635,16 @@ public partial class UniversityDbContext : DbContext
 
             entity.ToTable("StudentTuition");
 
+            entity.HasIndex(e => e.SemesterId, "IX_StudentTuition_SemesterID");
+
+            entity.HasIndex(e => e.StudentId, "IX_StudentTuition_StudentID");
+
+            entity.HasIndex(e => e.TuitionPolicyId, "IX_StudentTuition_TuitionPolicyID");
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.AmountPaid).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.DiscountAmount)
-                .HasDefaultValue(0m)
+                .HasDefaultValue(0.0m)
                 .HasColumnType("decimal(18, 2)");
             entity.Property(e => e.PaymentDate).HasColumnType("datetime");
             entity.Property(e => e.PaymentStatus).HasMaxLength(20);
@@ -606,6 +673,10 @@ public partial class UniversityDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__Tuitions__3214EC070E564B1A");
 
+            entity.HasIndex(e => e.SemesterId, "IX_Tuitions_SemesterId");
+
+            entity.HasIndex(e => e.StudentId, "IX_Tuitions_StudentId");
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.DueDate).HasColumnType("datetime");
             entity.Property(e => e.LastPaymentDate).HasColumnType("datetime");
@@ -630,6 +701,10 @@ public partial class UniversityDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__TuitionP__3214EC07DE141B5E");
 
+            entity.HasIndex(e => e.CreatedBy, "IX_TuitionPeriods_CreatedBy");
+
+            entity.HasIndex(e => e.SemesterId, "IX_TuitionPeriods_SemesterId");
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CreatedDate).HasColumnType("datetime");
             entity.Property(e => e.EndDate).HasColumnType("datetime");
@@ -653,6 +728,8 @@ public partial class UniversityDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__TuitionP__3214EC0745FBEDBD");
 
+            entity.HasIndex(e => e.MajorId, "IX_TuitionPolicies_MajorID");
+
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.MajorId).HasColumnName("MajorID");
@@ -666,6 +743,8 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Users__3214EC07D9E1546D");
+
+            entity.HasIndex(e => e.RoleId, "IX_Users_RoleId");
 
             entity.HasIndex(e => e.Email, "UQ__Users__A9D10534583BA837").IsUnique();
 

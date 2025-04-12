@@ -10,306 +10,199 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MassTransit;
+using CDQTSystem_API.Messages;
 
 namespace CDQTSystem_API.Services.Implements
 {
 	public class CourseRegistrationService : BaseService<CourseRegistrationService>, ICourseRegistrationService
 	{
-		public CourseRegistrationService(IUnitOfWork<DbContext> unitOfWork, ILogger<CourseRegistrationService> logger,
-						  IMapper mapper, IHttpContextAccessor httpContextAccessor)
+		private readonly IRequestClient<CourseRegistrationMessage> _requestClient;
+
+		public CourseRegistrationService(
+			IUnitOfWork<DbContext> unitOfWork,
+			ILogger<CourseRegistrationService> logger,
+			IMapper mapper,
+			IHttpContextAccessor httpContextAccessor,
+			IRequestClient<CourseRegistrationMessage> requestClient)
 			: base(unitOfWork, logger, mapper, httpContextAccessor)
 		{
+			_requestClient = requestClient;
 		}
 
-		public async Task<List<AvailableCourseResponse>> GetAvailableCourseOfferings()
+		public async Task<List<CourseRegistrationResponse>> GetRegistrations(Guid studentId)
 		{
-			var studentIdClaim = _httpContextAccessor.HttpContext.User.FindFirst("studentId");
-			if (studentIdClaim == null || !Guid.TryParse(studentIdClaim.Value, out Guid studentId))
+			try
 			{
-				throw new BadHttpRequestException("Invalid student token");
+				var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
+					.GetListAsync(
+						predicate: r => r.StudentId == studentId,
+						include: q => q
+							.Include(r => r.ClassSection)
+								.ThenInclude(cs => cs.Course)
+							.Include(r => r.ClassSection)
+								.ThenInclude(cs => cs.Professor)
+									.ThenInclude(p => p.User)
+							.Include(r => r.ClassSection)
+								.ThenInclude(cs => cs.Classroom)
+							.Include(r => r.ClassSection)
+								.ThenInclude(cs => cs.CourseRegistrations)
+					);
+
+				return registrations.Select(r => new CourseRegistrationResponse
+				{
+					RegistrationId = r.Id,
+					CourseOfferingId = r.ClassSection.Id,
+					CourseId = r.ClassSection.CourseId,
+					CourseCode = r.ClassSection.Course.CourseCode,
+					CourseName = r.ClassSection.Course.CourseName,
+					Credits = r.ClassSection.Course.Credits,
+					ProfessorId = r.ClassSection.ProfessorId ?? Guid.Empty,
+					ProfessorName = r.ClassSection.Professor?.User.FullName ?? "TBA",
+					Classroom = r.ClassSection.Classroom?.RoomName ?? "TBA",
+					Schedule = GetScheduleString(r.ClassSection),
+					Status = r.Status,
+					RegistrationDate = r.RegistrationDate,
+					TuitionStatus = r.TuitionStatus
+				}).ToList();
 			}
-
-			// Get student's major, courses and course registrations
-			var student = await _unitOfWork.GetRepository<Student>()
-				.SingleOrDefaultAsync(
-					predicate: s => s.Id == studentId,
-					include: q => q
-						.Include(s => s.Major)
-							.ThenInclude(m => m.Courses)
-						.Include(s => s.CourseRegistrations)
-							.ThenInclude(cr => cr.ClassSection)
-							.ThenInclude(cs => cs.Course)
-						.Include(s => s.CourseRegistrations)
-							.ThenInclude(cr => cr.Grades)
-				);
-
-			if (student == null)
-				return new List<AvailableCourseResponse>();
-
-			// Get passed courses
-			var passedCourseIds = student.CourseRegistrations
-				.Where(cr => cr.Grades != null && cr.Grades.Any(g => g.QualityPoints >= 1.0m))
-				.Select(cr => cr.ClassSection.CourseId)
-				.Distinct()
-				.ToList();
-
-			// Get current date in Vietnam timezone
-			var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
-			var currentDateVN = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTimeZone).Date;
-			_logger.LogInformation($"Current date in VN timezone: {currentDateVN}");
-
-			// Get current term
-			var currentTerm = await _unitOfWork.GetRepository<Semester>()
-				.SingleOrDefaultAsync(
-					predicate: s => s.StartDate <= DateOnly.FromDateTime(currentDateVN) && 
-								   s.EndDate >= DateOnly.FromDateTime(currentDateVN)
-				);
-			_logger.LogInformation($"Current term: {currentTerm?.SemesterName ?? "None"}");
-
-			if (currentTerm == null)
-				return new List<AvailableCourseResponse>();
-
-			// Get available courses (excluding passed courses)
-			var classSections = await _unitOfWork.GetRepository<ClassSection>()
-				.GetListAsync(
-					predicate: cs => cs.SemesterId == currentTerm.Id && 
-									student.Major.Courses.Select(c => c.Id).Contains(cs.CourseId) &&
-									!passedCourseIds.Contains(cs.CourseId),
-					include: q => q
-						.Include(cs => cs.Course)
-						.Include(cs => cs.CourseRegistrations)
-						.Include(cs => cs.ClassSectionSchedules)
-				);
-			_logger.LogInformation($"Found {classSections.Count} available course offerings");
-
-			// Create the response list
-			var response = classSections.Select(cs => new AvailableCourseResponse
+			catch (Exception ex)
 			{
-				CourseCode = cs.Course.CourseCode,
-				CourseName = cs.Course.CourseName,
-				ClassName = $"{cs.Course.CourseCode}-{cs.ClassroomId}",
-				Capacity = cs.Capacity,
-				AvailableSlots = cs.Capacity - (cs.CourseRegistrations?.Count ?? 0),
-				Schedule = GetScheduleString(cs),
-				ProfessorId = cs.ProfessorId
-			})
-			.OrderBy(c => c.CourseCode)
-			.ToList();
-
-			return response;
+				_logger.LogError(ex, "Error getting registrations for student {StudentId}", studentId);
+				throw;
+			}
 		}
 
 		private string GetScheduleString(ClassSection classSection)
 		{
 			if (classSection.ClassSectionSchedules == null || !classSection.ClassSectionSchedules.Any())
-				return "Not scheduled";
+				return "TBA";
 
-			return string.Join(", ", classSection.ClassSectionSchedules.Select(s =>
-				$"{s.DayOfWeek} {s.StartTime:hh\\:mm}-{s.EndTime:hh\\:mm}"));
+			return string.Join(", ", classSection.ClassSectionSchedules
+				.OrderBy(s => s.DayOfWeek)
+				.Select(s => $"{s.DayOfWeek} {s.StartTime:hh\\:mm}-{s.EndTime:hh\\:mm}"));
 		}
 
-		private async Task<List<Guid>> GetStudentPassedCourses(Guid studentId)
+		private async Task<string> CheckPrerequisiteStatus(Guid studentId, Guid courseId)
 		{
-			var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
-				.GetListAsync(
-					predicate: r => r.StudentId == studentId,
-					include: q => q
-						.Include(r => r.Grades)
-						.Include(r => r.ClassSection)
-				);
-
-			return registrations
-				.Where(r => r.Grades != null && r.Grades.Any(g => g.QualityPoints >= 2.0m)) // C grade or better
-				.Select(r => r.ClassSection.CourseId)
-				.ToList();
-		}
-
-		private async Task<string> CheckPrerequisiteStatus(Guid studentId, Guid courseId, List<Guid>? passedCourses = null)
-		{
-			if (passedCourses == null)
-			{
-				passedCourses = await GetStudentPassedCourses(studentId);
-			}
-
-			// Get course with its prerequisites using navigation property
 			var course = await _unitOfWork.GetRepository<Course>()
 				.SingleOrDefaultAsync(
 					predicate: c => c.Id == courseId,
 					include: q => q.Include(c => c.PrerequisiteCourses)
 				);
 
-			if (course == null)
-				throw new BadHttpRequestException("Course not found");
+			if (course == null || !course.PrerequisiteCourses.Any())
+				return "Satisfied";
 
-			// If no prerequisites, return Not Required
-			if (course.PrerequisiteCourses == null || !course.PrerequisiteCourses.Any())
-				return "Not Required";
-
-			// Check if all prerequisites are satisfied
-			foreach (var prerequisite in course.PrerequisiteCourses)
-			{
-				if (!passedCourses.Contains(prerequisite.Id))
-				{
-					return "Missing";
-				}
-			}
-
-			return "Satisfied";
-		}
-
-		private List<string> GetScheduleConflicts(CourseOfferingResponse offering, ICollection<CourseRegistration> currentRegistrations)
-		{
-			var conflicts = new List<string>();
-
-			// Simple schedule conflict detection based on string comparison
-			// In a real system, you would parse the schedule strings and check for actual time overlaps
-			foreach (var registration in currentRegistrations)
-			{
-				var regSchedule = GetScheduleString(registration.ClassSection);
-
-				if (regSchedule == offering.Schedule &&
-					registration.ClassSection.Id != offering.CourseOfferingId)
-				{
-					conflicts.Add($"{registration.ClassSection.Course.CourseCode}: {regSchedule}");
-				}
-			}
-
-			return conflicts;
-		}
-
-		public async Task<bool> CheckPrerequisites(Guid studentId, Guid courseId)
-		{
-			var status = await CheckPrerequisiteStatus(studentId, courseId);
-			return status == "Satisfied" || status == "Not Required";
-		}
-
-		public async Task<List<CourseRegistrationSummaryResponse>> GetRegistrationSummaryByTerm(Guid termId)
-		{
-			var classSections = await _unitOfWork.GetRepository<ClassSection>()
+			var studentCompletedCourses = await _unitOfWork.GetRepository<CourseRegistration>()
 				.GetListAsync(
-					predicate: co => co.SemesterId == termId,
+					predicate: r => r.StudentId == studentId && 
+								   r.Status == "Completed",
 					include: q => q
-						.Include(co => co.Course)
-						.Include(co => co.CourseRegistrations)
+						.Include(r => r.ClassSection)
+							.ThenInclude(cs => cs.Course)
+						.Include(r => r.Grades)
 				);
 
-			return classSections
-				.GroupBy(co => new { co.Course.CourseCode, co.Course.CourseName })
-				.Select(group =>
-				{
-					int totalCapacity = group.Sum(co => co.Capacity);
-					int totalRegistered = group.Sum(co => co.CourseRegistrations?.Count ?? 0);
-
-					return new CourseRegistrationSummaryResponse
-					{
-						CourseCode = group.Key.CourseCode,
-						CourseName = group.Key.CourseName,
-						RegisteredStudents = totalRegistered,
-						Capacity = totalCapacity,
-						FillPercentage = totalCapacity > 0
-							? Math.Round((double)totalRegistered / totalCapacity * 100, 2)
-							: 0
-					};
-				})
-				.OrderByDescending(s => s.FillPercentage)
+			var completedCourseIds = studentCompletedCourses
+				.Select(r => r.ClassSection.CourseId)
+				.Distinct()
 				.ToList();
+
+			return course.PrerequisiteCourses.All(p => completedCourseIds.Contains(p.Id)) 
+				? "Satisfied" 
+				: "Missing";
 		}
 
 		public async Task<bool> RegisterCourse(CourseRegistrationRequest request)
 		{
 			try
 			{
-				// Check if registration period is open
-				var currentPeriod = await _unitOfWork.GetRepository<RegistrationPeriod>()
-					.SingleOrDefaultAsync(
-						predicate: rp => rp.Status == "Open" &&
-										rp.StartDate <= DateTime.UtcNow &&
-										rp.EndDate >= DateTime.UtcNow
-					);
+				await ValidateRegistrationRequest(request);
 
-				if (currentPeriod == null)
-					throw new BadHttpRequestException("Course registration is currently closed");
-
-				// Check if the class section exists
-				var classSection = await _unitOfWork.GetRepository<ClassSection>()
-					.SingleOrDefaultAsync(
-						predicate: co => co.Id == request.CourseOfferingId,
-						include: q => q
-							.Include(co => co.Course)
-							.Include(co => co.CourseRegistrations)
-					);
-
-				if (classSection == null)
-					throw new BadHttpRequestException("Class section not found");
-
-				// Check if already registered
-				var existingRegistration = await _unitOfWork.GetRepository<CourseRegistration>()
-					.SingleOrDefaultAsync(
-						predicate: r => r.StudentId == request.StudentId &&
-									 r.ClassSectionId == request.CourseOfferingId
-					);
-
-				if (existingRegistration != null)
-					throw new BadHttpRequestException("Student is already registered for this course");
-
-				// Check capacity
-				bool isWaitlisted = classSection.CourseRegistrations.Count >= classSection.Capacity;
-
-				// Check prerequisites
-				var prerequisiteStatus = await CheckPrerequisiteStatus(request.StudentId, classSection.CourseId);
-				if (prerequisiteStatus == "Missing")
-					throw new BadHttpRequestException("Prerequisites not satisfied for this course");
-
-				// Check schedule conflicts
-				var studentTermRegistrations = await _unitOfWork.GetRepository<CourseRegistration>()
-					.GetListAsync(
-						predicate: r => r.StudentId == request.StudentId &&
-									  r.ClassSection.SemesterId == classSection.SemesterId,
-						include: q => q.Include(r => r.ClassSection)
-									   .ThenInclude(cs => cs.Course)
-					);
-
-				foreach (var termRegistration in studentTermRegistrations)
+				var message = new CourseRegistrationMessage
 				{
-					var scheduleHelper = new ScheduleHelper();
-					var existingSchedule = GetScheduleString(termRegistration.ClassSection);
-					var newSchedule = GetScheduleString(classSection);
-
-					if (scheduleHelper.HasScheduleConflict(existingSchedule, newSchedule))
-					{
-						throw new BadHttpRequestException($"Schedule conflict with {termRegistration.ClassSection.Course.CourseCode}: {existingSchedule}");
-					}
-				}
-
-				// Check total credits for the term
-				int currentTermCredits = studentTermRegistrations.Sum(r => r.ClassSection.Course.Credits);
-				int newCourseCredits = classSection.Course.Credits;
-
-				if (currentTermCredits + newCourseCredits > 24) // Assuming max is 24 credits
-					throw new BadHttpRequestException("Registering for this course would exceed maximum credit limit");
-
-				// Create registration with period reference
-				var registration = new CourseRegistration
-				{
-					Id = Guid.NewGuid(),
+					RequestId = Guid.NewGuid(),
 					StudentId = request.StudentId,
-					ClassSectionId = request.CourseOfferingId,
-					RegistrationDate = DateTime.Now,
-					Status = isWaitlisted ? "Waitlisted" : "Registered",
-					RegistrationPeriodId = currentPeriod.Id,
-					TuitionStatus = "Pending"
+					CourseOfferingId = request.CourseOfferingId,
+					RequestTimestamp = DateTime.UtcNow
 				};
 
-				await _unitOfWork.GetRepository<CourseRegistration>().InsertAsync(registration);
-				await _unitOfWork.CommitAsync();
+				var response = await _requestClient.GetResponse<CourseRegistrationResult>(message, 
+					timeout: TimeSpan.FromSeconds(30));
 
-				return true;
+				return response.Message.Success;  // Return the Success boolean from the result
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error registering course: {Message}", ex.Message);
-				throw;
+				_logger.LogError(ex, "Error registering course for student {StudentId}", request.StudentId);
+				return false;
 			}
+		}
+
+		private async Task ValidateRegistrationRequest(CourseRegistrationRequest request)
+		{
+			var currentPeriod = await _unitOfWork.GetRepository<RegistrationPeriod>()
+				.SingleOrDefaultAsync(
+					predicate: rp => rp.Status == "Open" &&
+									rp.StartDate <= DateTime.UtcNow &&
+									rp.EndDate >= DateTime.UtcNow
+				);
+
+			if (currentPeriod == null)
+				throw new BadHttpRequestException("Course registration is currently closed");
+
+			var classSection = await _unitOfWork.GetRepository<ClassSection>()
+				.SingleOrDefaultAsync(
+					predicate: cs => cs.Id == request.CourseOfferingId,
+					include: q => q
+						.Include(cs => cs.Course)
+						.Include(cs => cs.ClassSectionSchedules)
+				);
+
+			if (classSection == null)
+				throw new BadHttpRequestException("Course section not found");
+
+			var prerequisiteStatus = await CheckPrerequisiteStatus(request.StudentId, classSection.CourseId);
+			if (prerequisiteStatus == "Missing")
+				throw new BadHttpRequestException("Prerequisites not satisfied for this course");
+
+			var existingRegistrations = await _unitOfWork.GetRepository<CourseRegistration>()
+				.GetListAsync(
+					predicate: r => r.StudentId == request.StudentId &&
+								   r.ClassSection.SemesterId == classSection.SemesterId &&
+								   r.Status != "Dropped",
+					include: q => q
+						.Include(r => r.ClassSection)
+							.ThenInclude(cs => cs.ClassSectionSchedules)
+				);
+
+			foreach (var registration in existingRegistrations)
+			{
+				if (HasScheduleConflict(classSection.ClassSectionSchedules, 
+									  registration.ClassSection.ClassSectionSchedules))
+				{
+					throw new BadHttpRequestException("Schedule conflict with existing registration");
+				}
+			}
+		}
+
+		private bool HasScheduleConflict(ICollection<ClassSectionSchedule> schedule1, 
+									   ICollection<ClassSectionSchedule> schedule2)
+		{
+			foreach (var s1 in schedule1)
+			{
+				foreach (var s2 in schedule2)
+				{
+					if (s1.DayOfWeek == s2.DayOfWeek &&
+						s1.StartTime < s2.EndTime &&
+						s2.StartTime < s1.EndTime)
+					{
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 
 		public async Task<List<bool>> RegisterCourses(BatchCourseRegistrationRequest request)
@@ -442,6 +335,127 @@ namespace CDQTSystem_API.Services.Implements
 					EnrollmentDate = r.Student.EnrollmentDate,
 					ImageUrl = r.Student.User.Image
 				}).ToList();
+		}
+
+		public async Task<List<AvailableCourseResponse>> GetAvailableCourseOfferings()
+		{
+			// Get current registration period
+			var currentPeriod = await _unitOfWork.GetRepository<RegistrationPeriod>()
+				.SingleOrDefaultAsync(
+					predicate: rp => rp.Status == "Open" &&
+									rp.StartDate <= DateTime.UtcNow &&
+									rp.EndDate >= DateTime.UtcNow
+				);
+
+			if (currentPeriod == null)
+				throw new BadHttpRequestException("No active registration period found");
+
+			// Get course offerings for the current semester
+			var offerings = await _unitOfWork.GetRepository<ClassSection>()
+				.GetListAsync(
+					predicate: cs => cs.SemesterId == currentPeriod.SemesterId,
+					include: q => q
+						.Include(cs => cs.Course)
+						.Include(cs => cs.Professor)
+							.ThenInclude(p => p.User)
+						.Include(cs => cs.Classroom)
+						.Include(cs => cs.CourseRegistrations)
+						.Include(cs => cs.Semester)
+				);
+
+			return offerings.Select(o => new AvailableCourseResponse
+			{
+				CourseOfferingId = o.Id,
+				CourseCode = o.Course.CourseCode,
+				CourseName = o.Course.CourseName,
+				Credits = o.Course.Credits,
+				ProfessorName = o.Professor?.User.FullName,
+				Schedule = GetScheduleString(o),
+				Capacity = o.Capacity,
+				RegisteredCount = o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0,
+				AvailableSlots = o.Capacity - (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0),
+				PrerequisitesSatisfied = false, // Will be updated later for each student
+				Prerequisites = new List<string>() // Will be populated based on course prerequisites
+			}).ToList();
+		}
+
+		public async Task<List<AvailableCourseResponse>> GetAvailableCourseOfferingsForStudent(Guid studentId)
+		{
+			var offerings = await GetAvailableCourseOfferings();
+			
+			// For each course, check prerequisites for this specific student
+			foreach (var offering in offerings)
+			{
+				// Get the course ID from the offering
+				var courseOffering = await _unitOfWork.GetRepository<ClassSection>()
+					.SingleOrDefaultAsync(
+						predicate: cs => cs.Id == offering.CourseOfferingId,
+						include: q => q.Include(cs => cs.Course)
+					);
+
+				if (courseOffering != null)
+				{
+					offering.PrerequisitesSatisfied = await CheckPrerequisites(studentId, courseOffering.CourseId);
+					
+					// Get prerequisites list
+					var prerequisites = await _unitOfWork.GetRepository<Course>()
+						.SingleOrDefaultAsync(
+							predicate: c => c.Id == courseOffering.CourseId,
+							include: q => q.Include(c => c.PrerequisiteCourses)
+						);
+
+					offering.Prerequisites = prerequisites?.PrerequisiteCourses
+						.Select(p => p.CourseCode)
+						.ToList() ?? new List<string>();
+				}
+			}
+
+			return offerings;
+		}
+
+		public async Task<bool> CheckPrerequisites(Guid studentId, Guid courseId)
+		{
+			var status = await CheckPrerequisiteStatus(studentId, courseId);
+			return status == "Satisfied";
+		}
+
+		Task<bool> ICourseRegistrationService.RegisterCourse(CourseRegistrationRequest request)
+		{
+			throw new NotImplementedException();
+		}
+	}
+	internal class ScheduleHelper
+	{
+		public bool HasScheduleConflict(string schedule1, string schedule2)
+		{
+			var slots1 = ParseSchedule(schedule1);
+			var slots2 = ParseSchedule(schedule2);
+
+			return slots1.Any(s1 => slots2.Any(s2 => 
+				s1.DayOfWeek == s2.DayOfWeek && 
+				((s1.StartTime <= s2.StartTime && s2.StartTime < s1.EndTime) ||
+				 (s2.StartTime <= s1.StartTime && s1.StartTime < s2.EndTime))));
+		}
+
+		private List<(string DayOfWeek, TimeSpan StartTime, TimeSpan EndTime)> ParseSchedule(string schedule)
+		{
+			// Parse schedule string format: "Monday 07:30-09:30, Thursday 13:30-15:30"
+			var slots = new List<(string, TimeSpan, TimeSpan)>();
+			var parts = schedule.Split(',');
+
+			foreach (var part in parts)
+			{
+				var elements = part.Trim().Split(' ');
+				var times = elements[1].Split('-');
+				
+				slots.Add((
+					elements[0],
+					TimeSpan.Parse(times[0]),
+					TimeSpan.Parse(times[1])
+				));
+			}
+
+			return slots;
 		}
 	}
 }

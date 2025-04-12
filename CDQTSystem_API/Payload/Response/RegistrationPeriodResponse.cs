@@ -7,13 +7,10 @@ namespace CDQTSystem_API.Payload.Response
         public string SemesterName { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
-        public string Status { get; set; }  // Upcoming, Active, Closed
+        public string Status { get; set; } 
         public int MaxCredits { get; set; }
-        public int MinCredits { get; set; }
-        public bool AllowWaitlist { get; set; }
-        public int WaitlistLimit { get; set; }
 
-        public List<RegistrationPhaseInfo> Phases { get; set; } = new List<RegistrationPhaseInfo>();
+		public List<RegistrationPhaseInfo> Phases { get; set; } = new List<RegistrationPhaseInfo>();
         public RegistrationStatistics CurrentStatistics { get; set; }
     }
 

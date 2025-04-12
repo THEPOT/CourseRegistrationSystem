@@ -9,6 +9,9 @@ using CDQTSystem_API.Converter;
 using CDQTSystem_API.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using CDQTSystem_API.Middlewares;
+using MassTransit;
+using CDQTSystem_API.Consumers;
+using CDQTSystem_API.Messages;
 
 
 
@@ -62,6 +65,32 @@ namespace CourseRegistrationSystem
 
 			builder.Services.AddHttpClient();
 
+			builder.Services.AddMassTransit(x =>
+			{
+				// Ensure CourseRegistrationConsumer implements IConsumer
+				x.AddConsumer<CourseRegistrationConsumer>();
+
+				x.UsingRabbitMq((context, cfg) =>
+				{
+					cfg.Host("localhost", "/", h =>
+					{
+						h.Username("guest");
+						h.Password("guest");
+					});
+
+					cfg.ConfigureEndpoints(context);
+
+					cfg.ReceiveEndpoint("course-registration-queue", e =>
+					{
+						e.ConfigureConsumer<CourseRegistrationConsumer>(context);
+						e.UseMessageRetry(r => r.Intervals(100, 200, 500, 800, 1000));
+						e.PrefetchCount = 1;
+					});
+				});
+			});
+
+
+
 
 
 			var app = builder.Build();
@@ -74,7 +103,7 @@ namespace CourseRegistrationSystem
 
 			app.UseCors(CorsConstant.PolicyName);
 			app.UseHttpsRedirection();
-
+			app.UseAuthentication();
 			app.UseAuthorization();
 
 

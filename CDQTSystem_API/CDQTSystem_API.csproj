@@ -18,6 +18,9 @@
 		</PackageReference>
 		<PackageReference Include="payOS" Version="1.0.9" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+		<PackageReference Include="RabbitMQ.Client" Version="6.5.0" />
+		<PackageReference Include="MassTransit" Version="8.1.0" />
+		<PackageReference Include="MassTransit.RabbitMQ" Version="8.1.0" />
 	</ItemGroup>
 
   <ItemGroup>

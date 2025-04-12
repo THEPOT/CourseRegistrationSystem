@@ -1,4 +1,5 @@
-﻿using CDQTSystem_API.Payload.Request;
+﻿using CDQTSystem_API.Messages;
+using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
 using CDQTSystem_API.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -26,7 +27,8 @@ namespace CDQTSystem_API.Controllers
 		{
 			try 
 			{
-				var offerings = await _registrationService.GetAvailableCourseOfferings();
+				var studentId = Guid.Parse(User.FindFirst("UserId")?.Value);
+				var offerings = await _registrationService.GetAvailableCourseOfferingsForStudent(studentId);
 				return Ok(offerings);
 			}
 			catch (BadHttpRequestException ex)
@@ -43,35 +45,24 @@ namespace CDQTSystem_API.Controllers
 			return Ok(result);
 		}
 
-		[HttpPost]
+		[HttpPost("register")]
 		[Authorize(Roles = "Student")]
-		public async Task<ActionResult> RegisterCourse([FromBody] CourseRegistrationRequest request)
+		public async Task<ActionResult<CourseRegistrationResult>> RegisterCourse(
+			[FromBody] CourseRegistrationRequest request)
 		{
 			try
 			{
 				var result = await _registrationService.RegisterCourse(request);
-				return Ok(new { success = result });
+				return Ok(result);
 			}
 			catch (BadHttpRequestException ex)
 			{
-				return BadRequest(ex.Message);
+				return BadRequest(new { message = ex.Message });
 			}
-		}
-
-		[HttpPost("batch")]
-		[Authorize(Roles = "Student")]
-		public async Task<ActionResult<List<bool>>> RegisterCourses([FromBody] BatchCourseRegistrationRequest request)
-		{
-			var results = await _registrationService.RegisterCourses(request);
-			return Ok(results);
-		}
-
-		[HttpGet("students/{studentId}/terms/{termId}")]
-		[Authorize(Roles = "Student")]
-		public async Task<ActionResult<List<CourseOfferingResponse>>> GetStudentRegistrations(Guid studentId, Guid termId)
-		{
-			var registrations = await _registrationService.GetStudentRegistrations(studentId, termId);
-			return Ok(registrations);
+			catch (Exception ex)
+			{
+				return StatusCode(500, new { message = "An error occurred while processing your request" });
+			}
 		}
 	}
 }

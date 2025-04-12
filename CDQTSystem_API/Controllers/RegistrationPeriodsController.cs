@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using CDQTSystem_API.Services.Interface;
 using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
+using Microsoft.Extensions.Logging;
 
 namespace CDQTSystem_API.Controllers
 {
@@ -11,10 +12,12 @@ namespace CDQTSystem_API.Controllers
     public class RegistrationPeriodsController : ControllerBase
     {
         private readonly IRegistrationPeriodService _registrationPeriodService;
+        private readonly ILogger<RegistrationPeriodsController> _logger;
 
-        public RegistrationPeriodsController(IRegistrationPeriodService registrationPeriodService)
+        public RegistrationPeriodsController(IRegistrationPeriodService registrationPeriodService, ILogger<RegistrationPeriodsController> logger)
         {
             _registrationPeriodService = registrationPeriodService;
+            _logger = logger;
         }
 
         [HttpPost]
@@ -24,13 +27,40 @@ namespace CDQTSystem_API.Controllers
         {
             try
             {
-                var result = await _registrationPeriodService.CreateRegistrationPeriod(request);
-                return Ok(result);
+                var userIdClaim = User.FindFirst("UserId");
+                Console.WriteLine("1231231",userIdClaim);
+
+                if (!Guid.TryParse(userIdClaim.Value, out Guid userId))
+                {
+                    _logger.LogWarning("Invalid user ID format in token");
+                    return BadRequest(new 
+                    { 
+                        error = "Invalid user ID format",
+                        timestamp = DateTime.UtcNow
+                    });
+                }
+
+                var result = await _registrationPeriodService.CreateRegistrationPeriod(request, userId);
+                return CreatedAtAction(
+                    nameof(GetRegistrationPeriod), 
+                    new { id = result.Id }, 
+                    result);
             }
             catch (BadHttpRequestException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new 
+                { 
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
             }
+        }
+        [HttpGet]
+        [Authorize(Roles = "Staff")]
+        public async Task<ActionResult<List<RegistrationPeriodResponse>>> GetAllRegistrationPeriods()
+        {
+            var periods = await _registrationPeriodService.GetAllRegistrationPeriods();
+            return Ok(periods);
         }
 
         [HttpPut("{periodId}/status")]
@@ -76,6 +106,17 @@ namespace CDQTSystem_API.Controllers
         {
             var stats = await _registrationPeriodService.GetProgramStatistics(periodId);
             return Ok(stats);
+        }
+
+        [HttpGet("{id}")]
+        [Authorize(Roles = "Staff")]
+        public async Task<ActionResult<RegistrationPeriodResponse>> GetRegistrationPeriod(Guid id)
+        {
+            var period = await _registrationPeriodService.GetRegistrationPeriodById(id);
+            if (period == null)
+                return NotFound();
+            
+            return Ok(period);
         }
     }
 }

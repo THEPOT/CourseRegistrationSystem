@@ -13,6 +13,8 @@ public partial class RegistrationPeriod
 
     public DateTime EndDate { get; set; }
 
+    public int MaxCredits { get; set; }
+
     public string Status { get; set; } = null!;
 
     public Guid CreatedBy { get; set; }

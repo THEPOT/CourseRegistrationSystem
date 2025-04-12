@@ -1,5 +1,6 @@
 ﻿dotnet ef migrations add AddAcademicYearAndStatusToSemester --project CDQTSystem_Domain\CDQTSystem_Domain.csproj --startup-project CDQTSystem_API\CDQTSystem_API.csproj
 dotnet ef database update --project CDQTSystem_Domain\CDQTSystem_Domain.csproj --startup-project CDQTSystem_API\CDQTSystem_API.csproj
+dotnet ef dbcontext scaffold "Server=(local);uid=sa;pwd=12345;database=UniversityDb;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer --output-dir Models
 DECLARE @sql NVARCHAR(MAX) = N'';
 
 SELECT @sql += 'ALTER TABLE [' + OBJECT_SCHEMA_NAME(parent_object_id) + '].[' 

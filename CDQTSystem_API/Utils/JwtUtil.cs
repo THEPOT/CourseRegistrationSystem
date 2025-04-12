@@ -26,11 +26,12 @@ namespace CDQTSystem_API.Utils
 			var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
 			var claims = new List<Claim>
-	{
-		new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-		new Claim(JwtRegisteredClaimNames.Sub, account.FullName),
-		new Claim(ClaimTypes.Role, account.Role.RoleName)
-	};
+			{
+				new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+				new Claim(JwtRegisteredClaimNames.Sub, account.FullName),
+				new Claim(ClaimTypes.Role, account.Role.RoleName),
+				new Claim("UserId", account.Id.ToString())
+			};
 
 			if (guidClaim != null)
 			{
