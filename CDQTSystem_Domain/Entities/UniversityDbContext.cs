@@ -70,8 +70,10 @@ public partial class UniversityDbContext : DbContext
     public virtual DbSet<User> Users { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=(local);uid=sa;pwd=12345;database=UniversityDb;TrustServerCertificate=True");
+    {
+        optionsBuilder.UseSqlServer("Server=(local);uid=sa;pwd=12345;database=UniversityDb;TrustServerCertificate=True",
+            options => options.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -357,8 +359,6 @@ public partial class UniversityDbContext : DbContext
         modelBuilder.Entity<Department>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Departme__3214EC07BCD57E06");
-
-            entity.HasIndex(e => e.DepartmentName, "UQ__Departme__D949CC34AFE0707A").IsUnique();
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.DepartmentName)

@@ -1439,10 +1439,11 @@ namespace CDQTSystem_API.Services.Implements
 				return null;
 
 			// Tính toán số tín chỉ đã hoàn thành
-            var completedCourses = student.CourseRegistrations
-                .Where(cr => cr.Grades.Any(g => g.QualityPoints >= 1.0m))
-                .Select(cr => cr.ClassSection.Course)
-                .Distinct();
+			var completedCourses = student.CourseRegistrations
+				.Where(cr => cr.Grades != null && cr.Grades.Any(g => g != null && g.QualityPoints >= 1.0m))
+				.Where(cr => cr.ClassSection != null && cr.ClassSection.Course != null)
+				.Select(cr => cr.ClassSection.Course)
+				.Distinct();
 			
 			var completedCredits = completedCourses.Sum(c => c.Credits);
 			var completionPercentage = student.Major.RequiredCredits > 0 
@@ -1456,7 +1457,7 @@ namespace CDQTSystem_API.Services.Implements
 
 			// Lấy học phí kỳ hiện tại
 			var currentTuition = student.StudentTuitions
-				.OrderByDescending(st => st.Semester.StartDate)
+				.OrderByDescending(st => st.Semester?.StartDate)
 				.FirstOrDefault();
 
 			return new StudentDetailedInfoResponse

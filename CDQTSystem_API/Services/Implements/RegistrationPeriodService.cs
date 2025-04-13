@@ -190,8 +190,170 @@ namespace CDQTSystem_API.Services.Implements
             }
         }
 
+        public async Task<RegistrationAnalyticsResponse> GetRegistrationAnalytics(Guid termId)
+        {
+            try
+            {
+                // Thực hiện các truy vấn song song để cải thiện hiệu suất
+                var termSummariesTask = GetTermRegistrationSummaries();
+                var courseSummariesTask = GetCourseRegistrationSummaries(termId);
+                var programSummariesTask = GetProgramEnrollmentSummaries(termId);
+                var dailyCountsTask = GetDailyRegistrationCounts(termId);
+
+                await Task.WhenAll(termSummariesTask, courseSummariesTask, programSummariesTask, dailyCountsTask);
+
+                var termSummaries = await termSummariesTask;
+                var courseSummaries = await courseSummariesTask;
+                var programSummaries = await programSummariesTask;
+                var dailyCounts = await dailyCountsTask;
+
+                return new RegistrationAnalyticsResponse
+                {
+                    TermSummaries = termSummaries,
+                    CourseSummaries = courseSummaries,
+                    ProgramSummaries = programSummaries,
+                    DailyRegistrationCounts = dailyCounts
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting registration analytics");
+                throw;
+            }
+        }
+
+        public async Task<List<TermRegistrationSummary>> GetTermRegistrationSummaries()
+        {
+            var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
+                .GetListAsync(
+                    include: q => q
+                        .Include(r => r.ClassSection)
+                            .ThenInclude(cs => cs.Semester)
+                        .Include(r => r.Student)
+                            .ThenInclude(s => s.Major)
+                );
+
+            return registrations
+                .GroupBy(r => r.ClassSection.SemesterId)
+                .Select(g => new TermRegistrationSummary
+                {
+                    TermId = g.Key,
+                    TermName = g.First().ClassSection.Semester.SemesterName,
+                    TotalStudents = g.Select(r => r.StudentId).Distinct().Count(),
+                    TotalCourses = g.Select(r => r.ClassSection.CourseId).Distinct().Count(),
+                    AverageCoursesPerStudent = g.GroupBy(r => r.StudentId).Average(sg => sg.Count()),
+                    RegistrationsByProgram = g
+                        .GroupBy(r => r.Student.Major.MajorName)
+                        .ToDictionary(pg => pg.Key, pg => pg.Count())
+                })
+                .ToList();
+        }
+
+        public async Task<List<CourseRegistrationSummary>> GetCourseRegistrationSummaries(Guid termId)
+        {
+            // Tách thành nhiều truy vấn nhỏ hơn
+            var classSections = await _unitOfWork.GetRepository<ClassSection>()
+                .GetListAsync(
+                    predicate: cs => cs.SemesterId == termId,
+                    include: q => q.Include(cs => cs.Course)
+                );
+
+            var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
+                .GetListAsync(
+                    predicate: r => r.ClassSection.SemesterId == termId,
+                    include: q => q
+                        .Include(r => r.Student)
+                            .ThenInclude(s => s.Major)
+                );
+
+            return classSections
+                .GroupBy(cs => cs.CourseId)
+                .Select(g =>
+                {
+                    var courseRegistrations = registrations
+                        .Where(r => r.ClassSection.CourseId == g.Key)
+                        .ToList();
+
+                    return new CourseRegistrationSummary
+                    {
+                        CourseCode = g.First().Course.CourseCode,
+                        CourseName = g.First().Course.CourseName,
+                        TotalRegistrations = courseRegistrations.Count,
+                        TotalSections = g.Count(),
+                        AverageStudentsPerSection = g.Average(cs => 
+                            courseRegistrations.Count(r => r.ClassSectionId == cs.Id)),
+                        RegistrationsByProgram = courseRegistrations
+                            .GroupBy(r => r.Student.Major.MajorName)
+                            .ToDictionary(pg => pg.Key, pg => pg.Count())
+                    };
+                })
+                .ToList();
+        }
+
+        public async Task<List<ProgramEnrollmentSummary>> GetProgramEnrollmentSummaries(Guid termId)
+        {
+            var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
+                .GetListAsync(
+                    predicate: r => r.ClassSection.SemesterId == termId,
+                    include: q => q
+                        .Include(r => r.Student)
+                            .ThenInclude(s => s.Major)
+                );
+
+            return registrations
+                .GroupBy(r => r.Student.MajorId)
+                .Select(g =>
+                {
+                    var program = g.First().Student.Major;
+                    var studentRegistrations = g.GroupBy(r => r.StudentId);
+
+                    return new ProgramEnrollmentSummary
+                    {
+                        ProgramCode = program.MajorName,
+                        ProgramName = program.MajorName,
+                        TotalStudents = studentRegistrations.Count(),
+                        AverageCoursesPerStudent = studentRegistrations.Average(sr => sr.Count()),
+                        YearLevelBreakdown = g
+                            .GroupBy(r => GetYearLevel(r.Student.EnrollmentDate))
+                            .Select(yg => new YearLevelEnrollment
+                            {
+                                YearLevel = yg.Key,
+                                StudentCount = yg.Select(r => r.StudentId).Distinct().Count(),
+                                AverageCoursesPerStudent = yg.GroupBy(r => r.StudentId).Average(sg => sg.Count())
+                            })
+                            .ToList()
+                    };
+                })
+                .ToList();
+        }
+
+        private int GetYearLevel(DateOnly enrollmentDate)
+        {
+            var years = (DateTime.UtcNow.Year - enrollmentDate.Year);
+            return Math.Min(Math.Max(1, years), 4); // Ensure between 1 and 4
+        }
+
+        private async Task<Dictionary<string, int>> GetDailyRegistrationCounts(Guid termId)
+        {
+            var dailyCounts = await _unitOfWork.GetRepository<CourseRegistration>()
+                .GetListAsync(
+                    predicate: r => r.ClassSection.SemesterId == termId,
+                    include: q => q.Include(r => r.ClassSection)
+                );
+
+            return dailyCounts
+                .GroupBy(r => r.RegistrationDate.Date)
+                .OrderBy(g => g.Key)
+                .ToDictionary(
+                    g => g.Key.ToString("yyyy-MM-dd"),
+                    g => g.Count()
+                );
+        }
     }
 }
+
+
+
 
 
 

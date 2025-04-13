@@ -2,6 +2,7 @@
 {
 	public class ScheduleHelper
 	{
+
 		public bool HasScheduleConflict(string schedule1, string schedule2)
 		{
 			if (string.IsNullOrEmpty(schedule1) || string.IsNullOrEmpty(schedule2))

@@ -13,5 +13,9 @@ namespace CDQTSystem_API.Services.Interface
         Task<RegistrationStatisticsResponse> GetRegistrationStatistics(Guid periodId, Guid? programId = null, Guid? courseId = null);
         Task<List<ProgramRegistrationStatisticsResponse>> GetProgramStatistics(Guid periodId);
         Task<RegistrationPeriodResponse> GetRegistrationPeriodById(Guid id);
+        Task<RegistrationAnalyticsResponse> GetRegistrationAnalytics(Guid termId);
+        Task<List<TermRegistrationSummary>> GetTermRegistrationSummaries();
+        Task<List<CourseRegistrationSummary>> GetCourseRegistrationSummaries(Guid termId);
+        Task<List<ProgramEnrollmentSummary>> GetProgramEnrollmentSummaries(Guid termId);
     }
 }

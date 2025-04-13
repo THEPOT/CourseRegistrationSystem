@@ -12,6 +12,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using MassTransit;
 using CDQTSystem_API.Messages;
+using static CDQTSystem_API.Constants.ApiEndPointConstant;
 
 namespace CDQTSystem_API.Services.Implements
 {
@@ -114,33 +115,85 @@ namespace CDQTSystem_API.Services.Implements
 				: "Missing";
 		}
 
-		public async Task<bool> RegisterCourse(CourseRegistrationRequest request)
+		public async Task<bool> RegisterCourse(CourseRegistrationRequest request, Guid userId)
 		{
 			try
 			{
-				await ValidateRegistrationRequest(request);
+				var student = await _unitOfWork.GetRepository<Student>()
+					.SingleOrDefaultAsync(predicate: s => s.UserId == userId);
+				
+				if (student == null)
+				{
+					_logger.LogError("Student not found for user {UserId}", userId);
+					throw new BadHttpRequestException("Student not found");
+				}
+
+				var studentId = student.Id;
+				await ValidateRegistrationRequest(request, studentId);
 
 				var message = new CourseRegistrationMessage
 				{
 					RequestId = Guid.NewGuid(),
-					StudentId = request.StudentId,
+					StudentId = studentId,
 					CourseOfferingId = request.CourseOfferingId,
 					RequestTimestamp = DateTime.UtcNow
 				};
 
-				var response = await _requestClient.GetResponse<CourseRegistrationResult>(message, 
-					timeout: TimeSpan.FromSeconds(30));
+				_logger.LogInformation(
+					"Sending registration request - RequestId: {RequestId}, StudentId: {StudentId}, CourseOfferingId: {CourseOfferingId}",
+					message.RequestId,
+					message.StudentId,
+					message.CourseOfferingId
+				);
 
-				return response.Message.Success;  // Return the Success boolean from the result
+				// Increase timeout to 60 seconds and add retry logic
+				var timeout = TimeSpan.FromSeconds(60);
+				var retryCount = 3;
+				
+				for (int i = 0; i < retryCount; i++)
+				{
+					try
+					{
+						var response = await _requestClient.GetResponse<CourseRegistrationResult>(
+							message,
+							timeout: timeout
+						);
+
+						_logger.LogInformation(
+							"Registration response received - RequestId: {RequestId}, Success: {Success}",
+							message.RequestId,
+							response.Message.Success
+						);
+
+						return response.Message.Success;
+					}
+					catch (RequestTimeoutException) when (i < retryCount - 1)
+					{
+						_logger.LogWarning(
+							"Registration request timeout (attempt {Attempt}/{MaxAttempts}) - RequestId: {RequestId}",
+							i + 1,
+							retryCount,
+							message.RequestId
+						);
+						await Task.Delay(1000 * (i + 1)); // Exponential backoff
+						continue;
+					}
+				}
+
+				throw new BadHttpRequestException("Registration request timed out after multiple attempts");
+			}
+			catch (BadHttpRequestException)
+			{
+				throw;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Error registering course for student {StudentId}", request.StudentId);
-				return false;
+				_logger.LogError(ex, "Error registering course for user {UserId}", userId);
+				throw new BadHttpRequestException("Failed to process registration request");
 			}
 		}
 
-		private async Task ValidateRegistrationRequest(CourseRegistrationRequest request)
+		private async Task ValidateRegistrationRequest(CourseRegistrationRequest request, Guid studentId)
 		{
 			var currentPeriod = await _unitOfWork.GetRepository<RegistrationPeriod>()
 				.SingleOrDefaultAsync(
@@ -163,13 +216,13 @@ namespace CDQTSystem_API.Services.Implements
 			if (classSection == null)
 				throw new BadHttpRequestException("Course section not found");
 
-			var prerequisiteStatus = await CheckPrerequisiteStatus(request.StudentId, classSection.CourseId);
+			var prerequisiteStatus = await CheckPrerequisiteStatus(studentId, classSection.CourseId);
 			if (prerequisiteStatus == "Missing")
 				throw new BadHttpRequestException("Prerequisites not satisfied for this course");
 
 			var existingRegistrations = await _unitOfWork.GetRepository<CourseRegistration>()
 				.GetListAsync(
-					predicate: r => r.StudentId == request.StudentId &&
+					predicate: r => r.StudentId == studentId &&
 								   r.ClassSection.SemesterId == classSection.SemesterId &&
 								   r.Status != "Dropped",
 					include: q => q
@@ -205,31 +258,6 @@ namespace CDQTSystem_API.Services.Implements
 			return false;
 		}
 
-		public async Task<List<bool>> RegisterCourses(BatchCourseRegistrationRequest request)
-		{
-			var results = new List<bool>();
-
-			foreach (var courseOfferingId in request.CourseOfferingIds)
-			{
-				try
-				{
-					var singleRequest = new CourseRegistrationRequest
-					{
-						StudentId = request.StudentId,
-						CourseOfferingId = courseOfferingId
-					};
-
-					bool success = await RegisterCourse(singleRequest);
-					results.Add(success);
-				}
-				catch
-				{
-					results.Add(false);
-				}
-			}
-
-			return results;
-		}
 
 		public async Task<bool> UpdateRegistration(Guid registrationId, CourseRegistrationUpdateRequest request)
 		{
@@ -350,63 +378,80 @@ namespace CDQTSystem_API.Services.Implements
 			if (currentPeriod == null)
 				throw new BadHttpRequestException("No active registration period found");
 
-			// Get course offerings for the current semester
+			// Get course offerings with all related data in a single query
 			var offerings = await _unitOfWork.GetRepository<ClassSection>()
 				.GetListAsync(
 					predicate: cs => cs.SemesterId == currentPeriod.SemesterId,
 					include: q => q
 						.Include(cs => cs.Course)
+							.ThenInclude(c => c.PrerequisiteCourses)
 						.Include(cs => cs.Professor)
 							.ThenInclude(p => p.User)
 						.Include(cs => cs.Classroom)
 						.Include(cs => cs.CourseRegistrations)
 						.Include(cs => cs.Semester)
+						.Include(cs => cs.ClassSectionSchedules)
 				);
 
-			return offerings.Select(o => new AvailableCourseResponse
-			{
-				CourseOfferingId = o.Id,
-				CourseCode = o.Course.CourseCode,
-				CourseName = o.Course.CourseName,
-				Credits = o.Course.Credits,
-				ProfessorName = o.Professor?.User.FullName,
-				Schedule = GetScheduleString(o),
-				Capacity = o.Capacity,
-				RegisteredCount = o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0,
-				AvailableSlots = o.Capacity - (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0),
-				PrerequisitesSatisfied = false, // Will be updated later for each student
-				Prerequisites = new List<string>() // Will be populated based on course prerequisites
-			}).ToList();
+			return offerings
+				.Where(o => (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0) < o.Capacity) // Chỉ lấy các khóa học còn slot
+				.Select(o => new AvailableCourseResponse
+				{
+					CourseOfferingId = o.Id,
+					CourseCode = o.Course.CourseCode,
+					CourseName = o.Course.CourseName,
+					Credits = o.Course.Credits,
+					ProfessorId = o.ProfessorId,
+					ProfessorName = o.Professor?.User.FullName,
+					Schedule = GetScheduleString(o),
+					Capacity = o.Capacity,
+					RegisteredCount = o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0,
+					AvailableSlots = o.Capacity - (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0),
+					PrerequisitesSatisfied = false,
+					Prerequisites = o.Course.PrerequisiteCourses?.Select(p => p.CourseCode).ToList() ?? new List<string>()
+				}).ToList();
 		}
 
 		public async Task<List<AvailableCourseResponse>> GetAvailableCourseOfferingsForStudent(Guid studentId)
 		{
 			var offerings = await GetAvailableCourseOfferings();
 			
-			// For each course, check prerequisites for this specific student
+			if (!offerings.Any()) return new List<AvailableCourseResponse>();
+			
+			var completedCourses = await _unitOfWork.GetRepository<CourseRegistration>()
+				.GetListAsync(
+					predicate: r => r.StudentId == studentId && 
+								   r.Status == "Completed",
+					include: q => q
+						.Include(r => r.ClassSection)
+							.ThenInclude(cs => cs.Course)
+				);
+
+			var completedCourseIds = completedCourses
+				.Select(r => r.ClassSection.CourseId)
+				.Distinct()
+				.ToHashSet();
+
+			var coursesWithPrerequisites = await _unitOfWork.GetRepository<Course>()
+				.GetListAsync(
+					predicate: c => offerings.Select(o => o.CourseCode).Contains(c.CourseCode),
+					include: q => q.Include(c => c.PrerequisiteCourses)
+				);
+
+			var coursePrerequisitesMap = coursesWithPrerequisites.ToDictionary(
+				c => c.CourseCode,
+				c => (
+					Prerequisites: c.PrerequisiteCourses?.Select(p => p.CourseCode).ToList() ?? new List<string>(),
+					Satisfied: !c.PrerequisiteCourses.Any() || c.PrerequisiteCourses.All(p => completedCourseIds.Contains(p.Id))
+				)
+			);
+
 			foreach (var offering in offerings)
 			{
-				// Get the course ID from the offering
-				var courseOffering = await _unitOfWork.GetRepository<ClassSection>()
-					.SingleOrDefaultAsync(
-						predicate: cs => cs.Id == offering.CourseOfferingId,
-						include: q => q.Include(cs => cs.Course)
-					);
-
-				if (courseOffering != null)
+				if (coursePrerequisitesMap.TryGetValue(offering.CourseCode, out var prereqInfo))
 				{
-					offering.PrerequisitesSatisfied = await CheckPrerequisites(studentId, courseOffering.CourseId);
-					
-					// Get prerequisites list
-					var prerequisites = await _unitOfWork.GetRepository<Course>()
-						.SingleOrDefaultAsync(
-							predicate: c => c.Id == courseOffering.CourseId,
-							include: q => q.Include(c => c.PrerequisiteCourses)
-						);
-
-					offering.Prerequisites = prerequisites?.PrerequisiteCourses
-						.Select(p => p.CourseCode)
-						.ToList() ?? new List<string>();
+					offering.Prerequisites = prereqInfo.Prerequisites;
+					offering.PrerequisitesSatisfied = prereqInfo.Satisfied;
 				}
 			}
 
@@ -417,45 +462,6 @@ namespace CDQTSystem_API.Services.Implements
 		{
 			var status = await CheckPrerequisiteStatus(studentId, courseId);
 			return status == "Satisfied";
-		}
-
-		Task<bool> ICourseRegistrationService.RegisterCourse(CourseRegistrationRequest request)
-		{
-			throw new NotImplementedException();
-		}
-	}
-	internal class ScheduleHelper
-	{
-		public bool HasScheduleConflict(string schedule1, string schedule2)
-		{
-			var slots1 = ParseSchedule(schedule1);
-			var slots2 = ParseSchedule(schedule2);
-
-			return slots1.Any(s1 => slots2.Any(s2 => 
-				s1.DayOfWeek == s2.DayOfWeek && 
-				((s1.StartTime <= s2.StartTime && s2.StartTime < s1.EndTime) ||
-				 (s2.StartTime <= s1.StartTime && s1.StartTime < s2.EndTime))));
-		}
-
-		private List<(string DayOfWeek, TimeSpan StartTime, TimeSpan EndTime)> ParseSchedule(string schedule)
-		{
-			// Parse schedule string format: "Monday 07:30-09:30, Thursday 13:30-15:30"
-			var slots = new List<(string, TimeSpan, TimeSpan)>();
-			var parts = schedule.Split(',');
-
-			foreach (var part in parts)
-			{
-				var elements = part.Trim().Split(' ');
-				var times = elements[1].Split('-');
-				
-				slots.Add((
-					elements[0],
-					TimeSpan.Parse(times[0]),
-					TimeSpan.Parse(times[1])
-				));
-			}
-
-			return slots;
 		}
 	}
 }

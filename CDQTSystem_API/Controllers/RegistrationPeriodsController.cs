@@ -28,17 +28,8 @@ namespace CDQTSystem_API.Controllers
             try
             {
                 var userIdClaim = User.FindFirst("UserId");
-                Console.WriteLine("1231231",userIdClaim);
-
-                if (!Guid.TryParse(userIdClaim.Value, out Guid userId))
-                {
-                    _logger.LogWarning("Invalid user ID format in token");
-                    return BadRequest(new 
-                    { 
-                        error = "Invalid user ID format",
-                        timestamp = DateTime.UtcNow
-                    });
-                }
+                var userId = Guid.Parse(userIdClaim?.Value);
+                
 
                 var result = await _registrationPeriodService.CreateRegistrationPeriod(request, userId);
                 return CreatedAtAction(
@@ -117,6 +108,41 @@ namespace CDQTSystem_API.Controllers
                 return NotFound();
             
             return Ok(period);
+        }
+
+        [HttpGet("analytics")]
+        [Authorize(Roles = "Staff")]
+        public async Task<ActionResult<RegistrationAnalyticsResponse>> GetAnalytics(
+            [FromQuery] Guid termId)
+        {
+            var analytics = await _registrationPeriodService.GetRegistrationAnalytics(termId);
+            return Ok(analytics);
+        }
+
+        [HttpGet("terms/summaries")]
+        [Authorize(Roles = "Staff")]
+        public async Task<ActionResult<List<TermRegistrationSummary>>> GetTermSummaries()
+        {
+            var summaries = await _registrationPeriodService.GetTermRegistrationSummaries();
+            return Ok(summaries);
+        }
+
+        [HttpGet("courses/summaries")]
+        [Authorize(Roles = "Staff")]
+        public async Task<ActionResult<List<CourseRegistrationSummary>>> GetCourseSummaries(
+            [FromQuery] Guid termId)
+        {
+            var summaries = await _registrationPeriodService.GetCourseRegistrationSummaries(termId);
+            return Ok(summaries);
+        }
+
+        [HttpGet("programs/summaries")]
+        [Authorize(Roles = "Staff")]
+        public async Task<ActionResult<List<ProgramEnrollmentSummary>>> GetProgramSummaries(
+            [FromQuery] Guid termId)
+        {
+            var summaries = await _registrationPeriodService.GetProgramEnrollmentSummaries(termId);
+            return Ok(summaries);
         }
     }
 }

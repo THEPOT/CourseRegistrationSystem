@@ -52,7 +52,8 @@ namespace CDQTSystem_API.Controllers
 		{
 			try
 			{
-				var result = await _registrationService.RegisterCourse(request);
+				var userId = Guid.Parse(User.FindFirst("UserId")?.Value);
+				var result = await _registrationService.RegisterCourse(request, userId);
 				return Ok(result);
 			}
 			catch (BadHttpRequestException ex)

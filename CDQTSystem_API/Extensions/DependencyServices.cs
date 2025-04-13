@@ -31,7 +31,9 @@ namespace CDQTSystem_API.Extensions
 				.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true).Build();
 
 			services.AddDbContext<UniversityDbContext>(options =>
-			options.UseSqlServer(CreateConnectionString(configuration)));
+				options.UseSqlServer(CreateConnectionString(configuration),
+					sqlServerOptions => sqlServerOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery))
+			);
 
 			services.AddScoped<DbContext>(provider => provider.GetService<UniversityDbContext>());
 			return services;
@@ -56,6 +58,7 @@ namespace CDQTSystem_API.Extensions
 			services.AddScoped<IServiceRequestService, ServiceRequestService>();
 			services.AddScoped<IStudentsService, StudentsService>();
 			services.AddScoped<IUsersService, UsersService>();
+			services.AddScoped<IProfessorService, ProfessorService>();
 
 			return services;
 		}
