@@ -98,7 +98,7 @@ namespace CDQTSystem_API.Consumers
                         .Count(r => r.Status != "Dropped");
 
                     // If no available slots, return failure instead of waitlisting
-                    if (currentRegistrations >= classSection.Capacity)
+                    if (currentRegistrations >= classSection.MaxCapacity)
                     {
                         _logger.LogInformation(
                             "Registration failed - No available slots - RequestId: {RequestId}",

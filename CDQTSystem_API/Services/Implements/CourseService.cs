@@ -20,22 +20,24 @@ namespace CDQTSystem_API.Services.Implements
 		{
 		}
 
-		public async Task<List<CourseBasicInfo>> GetAllCourses()
+		public async Task<List<CourseResponses>> GetAllCourses()
 		{
 			var courses = await _unitOfWork.GetRepository<Course>()
-				.GetListAsync();
+				.GetListAsync(
+					predicate: c => c.Department != null,
+					include: q => q
+						.Include(c => c.Department)
+						.Include(c => c.PrerequisiteCourses)
+						.Include(c => c.CorequisiteCourses)
+				);
 
 			return courses
 				.OrderBy(c => c.CourseCode)
-				.Select(c => new CourseBasicInfo
-				{
-					Id = c.Id,
-					CourseCode = c.CourseCode,
-					CourseName = c.CourseName
-				}).ToList();
+				.Select(c => MapCourseToResponse(c))
+				.ToList();
 		}
 
-		public async Task<CourseDetailsResponse> GetCourseByCode(string courseCode)
+		public async Task<CourseResponses> GetCourseByCode(string courseCode)
 		{
 			var course = await _unitOfWork.GetRepository<Course>()
 				.SingleOrDefaultAsync(
@@ -52,7 +54,7 @@ namespace CDQTSystem_API.Services.Implements
 			return MapCourseToResponse(course);
 		}
 
-		public async Task<CourseDetailsResponse> GetCourseById(Guid courseId)
+		public async Task<CourseResponses> GetCourseById(Guid courseId)
 		{
 			var course = await _unitOfWork.GetRepository<Course>()
 				.SingleOrDefaultAsync(
@@ -69,10 +71,10 @@ namespace CDQTSystem_API.Services.Implements
 			return MapCourseToResponse(course);
 		}
 
-		public async Task<List<CourseDetailsResponse>> SearchCourses(string keyword)
+		public async Task<List<CourseResponses>> SearchCourses(string keyword)
 		{
 			if (string.IsNullOrWhiteSpace(keyword))
-				return new List<CourseDetailsResponse>();
+				return new List<CourseResponses>();
 
 			keyword = keyword.ToLower();
 
@@ -93,7 +95,7 @@ namespace CDQTSystem_API.Services.Implements
 				.ToList();
 		}
 
-		public async Task<CourseDetailsResponse> CreateCourse(CourseCreateRequest request)
+		public async Task<CourseResponses> CreateCourse(CourseCreateRequest request)
 		{
 			try
 			{
@@ -163,7 +165,7 @@ namespace CDQTSystem_API.Services.Implements
 			}
 		}
 
-		public async Task<CourseDetailsResponse> UpdateCourse(Guid courseId, CourseUpdateRequest request)
+		public async Task<CourseResponses> UpdateCourse(Guid courseId, CourseUpdateRequest request)
 		{
 			try
 			{
@@ -394,9 +396,9 @@ namespace CDQTSystem_API.Services.Implements
 			}
 		}
 
-		private CourseDetailsResponse MapCourseToResponse(Course course)
+		private CourseResponses MapCourseToResponse(Course course)
 		{
-			return new CourseDetailsResponse
+			return new CourseResponses
 			{
 				Id = course.Id,
 				CourseCode = course.CourseCode,

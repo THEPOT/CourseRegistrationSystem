@@ -35,7 +35,7 @@ namespace CDQTSystem_API.Services.Implements
                         Id = Guid.NewGuid(),
                         CourseId = offering.CourseId,
                         SemesterId = request.SemesterId,
-                        Capacity = offering.Capacity,
+                        MaxCapacity = offering.Capacity,
                         ProfessorId = offering.InstructorId,
                         ClassSectionSchedules = offering.Schedules.Select(s => new ClassSectionSchedule
                         {
@@ -86,9 +86,9 @@ namespace CDQTSystem_API.Services.Implements
                 Classroom = co.Classroom?.RoomName ?? "TBD",
                 Schedule = string.Join(", ", co.ClassSectionSchedules.Select(s => 
                     $"{s.DayOfWeek} {s.StartTime:hh\\:mm}-{s.EndTime:hh\\:mm}")),
-                Capacity = co.Capacity,
+                Capacity = co.MaxCapacity,
                 RegisteredCount = co.CourseRegistrations?.Count ?? 0,
-                AvailableSlots = co.Capacity - (co.CourseRegistrations?.Count ?? 0),
+                AvailableSlots = co.MaxCapacity - (co.CourseRegistrations?.Count ?? 0),
                 SemesterName = co.Semester.SemesterName,
                 StartDate = co.Semester.StartDate,
                 EndDate = co.Semester.EndDate
@@ -112,7 +112,7 @@ namespace CDQTSystem_API.Services.Implements
                 .Select(r => new StudentInfoResponse
                 {
                     Id = r.Student.Id,
-                    Mssv = r.Student.Mssv,
+                    Mssv = r.Student.User.UserCode,
                     FullName = r.Student.User.FullName,
                     Email = r.Student.User.Email,
                     MajorName = r.Student.Major.MajorName,
@@ -149,7 +149,7 @@ namespace CDQTSystem_API.Services.Implements
                 EndTime = s.EndTime
             }).ToList();
 
-            offering.Capacity = request.Capacity;
+            offering.MaxCapacity = request.Capacity;
             offering.ProfessorId = request.InstructorId;
             offering.ClassroomId = request.ClassroomId;
 
@@ -167,9 +167,9 @@ namespace CDQTSystem_API.Services.Implements
                 Classroom = offering.Classroom?.RoomName ?? "TBD",
                 Schedule = string.Join(", ", offering.ClassSectionSchedules.Select(s => 
                     $"{s.DayOfWeek} {s.StartTime:hh\\:mm}-{s.EndTime:hh\\:mm}")),
-                Capacity = offering.Capacity,
+                Capacity = offering.MaxCapacity,
                 RegisteredCount = offering.CourseRegistrations?.Count ?? 0,
-                AvailableSlots = offering.Capacity - (offering.CourseRegistrations?.Count ?? 0),
+                AvailableSlots = offering.MaxCapacity - (offering.CourseRegistrations?.Count ?? 0),
                 SemesterName = offering.Semester.SemesterName,
                 StartDate = offering.Semester.StartDate,
                 EndDate = offering.Semester.EndDate
@@ -226,9 +226,9 @@ namespace CDQTSystem_API.Services.Implements
                 Classroom = offering.Classroom?.RoomName ?? "TBD",
                 Schedule = string.Join(", ", offering.ClassSectionSchedules.Select(s => 
                     $"{s.DayOfWeek} {s.StartTime:hh\\:mm}-{s.EndTime:hh\\:mm}")),
-                Capacity = offering.Capacity,
+                Capacity = offering.MaxCapacity,
                 RegisteredCount = offering.CourseRegistrations?.Count ?? 0,
-                AvailableSlots = offering.Capacity - (offering.CourseRegistrations?.Count ?? 0),
+                AvailableSlots = offering.MaxCapacity - (offering.CourseRegistrations?.Count ?? 0),
                 SemesterName = offering.Semester.SemesterName,
                 StartDate = offering.Semester.StartDate,
                 EndDate = offering.Semester.EndDate
@@ -286,7 +286,7 @@ namespace CDQTSystem_API.Services.Implements
                 }).ToList();
 
                 // Update other properties
-                offering.Capacity = request.Capacity;
+                offering.MaxCapacity = request.Capacity;
                 offering.ProfessorId = request.InstructorId;
                 offering.ClassroomId = request.ClassroomId;
 

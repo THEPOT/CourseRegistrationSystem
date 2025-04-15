@@ -5,12 +5,12 @@ namespace CDQTSystem_API.Services.Interface
 {
 	public interface ICourseService
 	{
-		Task<List<CourseBasicInfo>> GetAllCourses();
-		Task<CourseDetailsResponse> GetCourseByCode(string courseCode);
-		Task<CourseDetailsResponse> GetCourseById(Guid courseId);
-		Task<List<CourseDetailsResponse>> SearchCourses(string keyword);
-		Task<CourseDetailsResponse> CreateCourse(CourseCreateRequest request);
-		Task<CourseDetailsResponse> UpdateCourse(Guid courseId, CourseUpdateRequest request);
+		Task<List<CourseResponses>> GetAllCourses();
+		Task<CourseResponses> GetCourseByCode(string courseCode);
+		Task<CourseResponses> GetCourseById(Guid courseId);
+		Task<List<CourseResponses>> SearchCourses(string keyword);
+		Task<CourseResponses> CreateCourse(CourseCreateRequest request);
+		Task<CourseResponses> UpdateCourse(Guid courseId, CourseUpdateRequest request);
 		Task<bool> DeleteCourse(Guid courseId);
 		Task<CourseSyllabusResponse> GetLatestSyllabus(Guid courseId);
 		Task<List<CourseSyllabusResponse>> GetAllSyllabusVersions(Guid courseId);

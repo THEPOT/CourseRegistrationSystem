@@ -100,7 +100,7 @@ namespace CDQTSystem_API.Services.Implements
 			var response = new DegreeAuditResponse
 			{
 				StudentId = student.Id,
-				Mssv = student.Mssv,
+				Mssv = student.User.UserCode,
 				StudentName = student.User.FullName,
 				MajorName = student.Major.MajorName,
 				RequiredCredits = student.Major.RequiredCredits,

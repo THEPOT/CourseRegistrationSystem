@@ -176,10 +176,10 @@ namespace CDQTSystem_API.Services.Implements
 							Id = Guid.NewGuid(),
 							UserId = newUser.Id,
 							MajorId = registerRequest.MajorId,
-							Mssv = MSSVGeneration.GenerateStudentId(),
 							EnrollmentDate = DateOnly.FromDateTime(DateTime.Now) // Set to current date
 						};
 						await _unitOfWork.GetRepository<Student>().InsertAsync(newStudent);
+						newUser.UserCode = UserCodeGeneration.GenerateStudentId();
 						break;
 
 					case RoleEnum.Professor:
@@ -189,6 +189,7 @@ namespace CDQTSystem_API.Services.Implements
 							UserId = newUser.Id,
 						};
 						await _unitOfWork.GetRepository<Professor>().InsertAsync(newLecturer);
+						newUser.UserCode = UserCodeGeneration.GenerateProfessorId();
 						break;
 					case RoleEnum.Admin:
 					case RoleEnum.Staff:
@@ -198,6 +199,7 @@ namespace CDQTSystem_API.Services.Implements
 							UserId = newUser.Id,
 						};
 						await _unitOfWork.GetRepository<AdministrativeStaff>().InsertAsync(newStaff);
+						newUser.UserCode = UserCodeGeneration.GenerateStaffId();
 						break;
 					default:
 						_logger.LogWarning("Unhandled role {RoleName} during registration.", registerRequest.Role);

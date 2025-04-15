@@ -7,9 +7,9 @@ public partial class Course
 {
     public Guid Id { get; set; }
 
-    public string CourseCode { get; set; } = null!;
-
     public string CourseName { get; set; } = null!;
+
+    public string CourseCode { get; set; } = null!;
 
     public int Credits { get; set; }
 
@@ -21,9 +21,13 @@ public partial class Course
 
     public virtual ICollection<ClassSection> ClassSections { get; set; } = new List<ClassSection>();
 
+    public virtual ICollection<CourseEvaluation> CourseEvaluations { get; set; } = new List<CourseEvaluation>();
+
     public virtual ICollection<CourseSyllabus> CourseSyllabi { get; set; } = new List<CourseSyllabus>();
 
     public virtual Department Department { get; set; } = null!;
+
+    public virtual ICollection<MidtermEvaluation> MidtermEvaluations { get; set; } = new List<MidtermEvaluation>();
 
     public virtual ICollection<Course> CorequisiteCourses { get; set; } = new List<Course>();
 

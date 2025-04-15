@@ -16,8 +16,8 @@ namespace CDQTSystem_API.Controllers
 			_courseService = courseService;
 		}
 		[HttpGet]
-		[Authorize(Roles = "Staff")]
-		public async Task<ActionResult<List<CourseDetailsResponse>>> GetAllCourses()
+		[Authorize]
+		public async Task<ActionResult<List<CourseResponses>>> GetAllCourses()
 		{
 			var courses = await _courseService.GetAllCourses();
 			return Ok(courses);
@@ -25,7 +25,7 @@ namespace CDQTSystem_API.Controllers
 
 		[HttpGet("code/{courseCode}")]
 		[Authorize]
-		public async Task<ActionResult<CourseDetailsResponse>> GetCourseByCode(string courseCode)
+		public async Task<ActionResult<CourseResponses>> GetCourseByCode(string courseCode)
 		{
 			var course = await _courseService.GetCourseByCode(courseCode);
 			if (course == null)
@@ -35,7 +35,7 @@ namespace CDQTSystem_API.Controllers
 
 		[HttpGet("{courseId:guid}")]
 		[Authorize]
-		public async Task<ActionResult<CourseDetailsResponse>> GetCourseById(Guid courseId)
+		public async Task<ActionResult<CourseResponses>> GetCourseById(Guid courseId)
 		{
 			var course = await _courseService.GetCourseById(courseId);
 			if (course == null)
@@ -45,7 +45,7 @@ namespace CDQTSystem_API.Controllers
 
 		[HttpGet("search")]
 		[Authorize]
-		public async Task<ActionResult<List<CourseDetailsResponse>>> SearchCourses([FromQuery] string keyword)
+		public async Task<ActionResult<List<CourseResponses>>> SearchCourses([FromQuery] string keyword)
 		{
 			if (string.IsNullOrWhiteSpace(keyword))
 				return BadRequest("Search keyword cannot be empty");
@@ -55,8 +55,8 @@ namespace CDQTSystem_API.Controllers
 		}
 
 		[HttpPost]
-		[Authorize(Roles = "Staff")]
-		public async Task<ActionResult<CourseDetailsResponse>> CreateCourse([FromBody] CourseCreateRequest request)
+		[Authorize]
+		public async Task<ActionResult<CourseResponses>> CreateCourse([FromBody] CourseCreateRequest request)
 		{
 			try
 			{
@@ -70,8 +70,8 @@ namespace CDQTSystem_API.Controllers
 		}
 
 		[HttpPut("{courseId:guid}")]
-		[Authorize(Roles = "Staff")]
-		public async Task<ActionResult<CourseDetailsResponse>> UpdateCourse(Guid courseId, [FromBody] CourseUpdateRequest request)
+		[Authorize]
+		public async Task<ActionResult<CourseResponses>> UpdateCourse(Guid courseId, [FromBody] CourseUpdateRequest request)
 		{
 			try
 			{
@@ -87,7 +87,7 @@ namespace CDQTSystem_API.Controllers
 		}
 
 		[HttpDelete("{courseId:guid}")]
-		[Authorize(Roles = "Staff")]
+		[Authorize]
 		public async Task<ActionResult> DeleteCourse(Guid courseId)
 		{
 			var result = await _courseService.DeleteCourse(courseId);

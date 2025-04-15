@@ -330,11 +330,11 @@ namespace CDQTSystem_API.Services.Implements
 				CourseCode = r.ClassSection.Course.CourseCode,
 				CourseName = r.ClassSection.Course.CourseName,
 				Credits = r.ClassSection.Course.Credits,
-				ProfessorId = r.ClassSection.ProfessorId ?? Guid.Empty,
+				ProfessorId = r.ClassSection.ProfessorId,
 				ProfessorName = r.ClassSection.Professor.User.FullName,
 				Classroom = r.ClassSection.Classroom?.RoomName ?? "Online",
 				Schedule = GetScheduleString(r.ClassSection),
-				Capacity = r.ClassSection.Capacity,
+				Capacity = r.ClassSection.MaxCapacity,
 				RegisteredCount = r.ClassSection.CourseRegistrations?.Count ?? 0
 			}).ToList();
 		}
@@ -356,7 +356,7 @@ namespace CDQTSystem_API.Services.Implements
 				.Select(r => new StudentInfoResponse
 				{
 					Id = r.Student.Id,
-					Mssv = r.Student.Mssv,
+					Mssv = r.Student.User.UserCode,
 					FullName = r.Student.User.FullName,
 					Email = r.Student.User.Email,
 					MajorName = r.Student.Major.MajorName,
@@ -394,7 +394,7 @@ namespace CDQTSystem_API.Services.Implements
 				);
 
 			return offerings
-				.Where(o => (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0) < o.Capacity) // Chỉ lấy các khóa học còn slot
+				.Where(o => (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0) < o.MaxCapacity) // Chỉ lấy các khóa học còn slot
 				.Select(o => new AvailableCourseResponse
 				{
 					CourseOfferingId = o.Id,
@@ -404,15 +404,15 @@ namespace CDQTSystem_API.Services.Implements
 					ProfessorId = o.ProfessorId,
 					ProfessorName = o.Professor?.User.FullName,
 					Schedule = GetScheduleString(o),
-					Capacity = o.Capacity,
+					Capacity = o.MaxCapacity,
 					RegisteredCount = o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0,
-					AvailableSlots = o.Capacity - (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0),
+					AvailableSlots = o.MaxCapacity - (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0),
 					PrerequisitesSatisfied = false,
 					Prerequisites = o.Course.PrerequisiteCourses?.Select(p => p.CourseCode).ToList() ?? new List<string>()
 				}).ToList();
 		}
 
-		public async Task<List<AvailableCourseResponse>> GetAvailableCourseOfferingsForStudent(Guid studentId)
+		public async Task<List<AvailableCourseResponse>> GetAvailableCourseOfferingsForStudent(Guid userId)
 		{
 			var offerings = await GetAvailableCourseOfferings();
 			
@@ -420,7 +420,7 @@ namespace CDQTSystem_API.Services.Implements
 			
 			var completedCourses = await _unitOfWork.GetRepository<CourseRegistration>()
 				.GetListAsync(
-					predicate: r => r.StudentId == studentId && 
+					predicate: r => r.StudentId == userId && 
 								   r.Status == "Completed",
 					include: q => q
 						.Include(r => r.ClassSection)

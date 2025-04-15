@@ -11,7 +11,7 @@ public partial class StudentTuition
 
     public Guid SemesterId { get; set; }
 
-    public Guid TuitionPolicyId { get; set; }
+    public Guid? TuitionPolicyId { get; set; }
 
     public decimal TotalAmount { get; set; }
 
@@ -21,7 +21,7 @@ public partial class StudentTuition
 
     public string PaymentStatus { get; set; } = null!;
 
-    public DateOnly PaymentDueDate { get; set; }
+    public DateTime DueDate { get; set; }
 
     public DateTime? PaymentDate { get; set; }
 
@@ -31,5 +31,5 @@ public partial class StudentTuition
 
     public virtual Student Student { get; set; } = null!;
 
-    public virtual TuitionPolicy TuitionPolicy { get; set; } = null!;
+    public virtual TuitionPolicy? TuitionPolicy { get; set; }
 }

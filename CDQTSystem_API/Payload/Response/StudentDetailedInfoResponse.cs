@@ -21,8 +21,8 @@ public class StudentDetailedInfoResponse
     public MajorInfo MajorInfo { get; set; }
 
     // Tab 4: Học phí
-    public CurrentTuition CurrentTuition { get; set; }
-    public List<TuitionHistory> TuitionHistory { get; set; }
+    public CurrentTuition? CurrentTuition { get; set; }
+    public List<TuitionHistory> TuitionHistory { get; set; } = new();
 }
 
 public class CurrentScholarship
@@ -60,16 +60,16 @@ public class CourseStatus
 
 public class CurrentTuition
 {
-    public string TuitionName { get; set; }
+    public string TuitionName { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public DateOnly DueDate { get; set; }
-    public string Status { get; set; }
+    public string Status { get; set; } = string.Empty;
 }
-
 public class TuitionHistory
 {
-    public string TuitionName { get; set; }
+    public string TuitionName { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public DateOnly DueDate { get; set; }
-    public string Status { get; set; }
-}}
+    public string Status { get; set; } = string.Empty;
+}
+}

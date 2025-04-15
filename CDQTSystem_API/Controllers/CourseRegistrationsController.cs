@@ -27,8 +27,8 @@ namespace CDQTSystem_API.Controllers
 		{
 			try 
 			{
-				var studentId = Guid.Parse(User.FindFirst("UserId")?.Value);
-				var offerings = await _registrationService.GetAvailableCourseOfferingsForStudent(studentId);
+				var userId = Guid.Parse(User.FindFirst("UserId")?.Value);
+				var offerings = await _registrationService.GetAvailableCourseOfferingsForStudent(userId);
 				return Ok(offerings);
 			}
 			catch (BadHttpRequestException ex)
