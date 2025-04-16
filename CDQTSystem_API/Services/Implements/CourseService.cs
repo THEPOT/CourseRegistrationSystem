@@ -1,8 +1,9 @@
-﻿using AutoMapper;
+using AutoMapper;
 using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
 using CDQTSystem_API.Services.Interface;
 using CDQTSystem_Domain.Entities;
+using CDQTSystem_Domain.Paginate;
 using CDQTSystem_Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -20,22 +21,50 @@ namespace CDQTSystem_API.Services.Implements
 		{
 		}
 
-		public async Task<List<CourseResponses>> GetAllCourses()
+		public async Task<IPaginate<CourseResponses>> GetAllCourses(string? search, int page = 1, int pageSize = 10)
 		{
-			var courses = await _unitOfWork.GetRepository<Course>()
-				.GetListAsync(
-					predicate: c => c.Department != null,
-					include: q => q
+			IPaginate<CourseResponses> courses = await _unitOfWork.GetRepository<Course>()
+				.GetPagingListAsync(
+				selector: c => new CourseResponses
+				{
+					Id = c.Id,
+					CourseCode = c.CourseCode,
+					CourseName = c.CourseName,
+					Credits = c.Credits,
+					Description = c.Description,
+					LearningOutcomes = c.LearningOutcomes,
+					DepartmentId = c.DepartmentId,
+					DepartmentName = c.Department.DepartmentName,
+					Prerequisites = c.PrerequisiteCourses.Select(pc => new CourseBasicInfo
+					{
+						Id = pc.Id,
+						CourseCode = pc.CourseCode,
+						CourseName = pc.CourseName
+					}).ToList(),
+					Corequisites = c.CorequisiteCourses.Select(cc => new CourseBasicInfo
+					{
+						Id = cc.Id,
+						CourseCode = cc.CourseCode,
+						CourseName = cc.CourseName
+					}).ToList()
+
+				},
+				orderBy: q => q.OrderBy(c => c.Id),
+				predicate: c => c.Department != null &&
+									(string.IsNullOrEmpty(search) ||
+									 c.CourseName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+									 c.CourseCode.Contains(search, StringComparison.OrdinalIgnoreCase)),
+				page: page,
+				size: pageSize,
+				include: q => q
 						.Include(c => c.Department)
 						.Include(c => c.PrerequisiteCourses)
 						.Include(c => c.CorequisiteCourses)
 				);
 
-			return courses
-				.OrderBy(c => c.CourseCode)
-				.Select(c => MapCourseToResponse(c))
-				.ToList();
+			return courses;
 		}
+
 
 		public async Task<CourseResponses> GetCourseByCode(string courseCode)
 		{
@@ -169,7 +198,6 @@ namespace CDQTSystem_API.Services.Implements
 		{
 			try
 			{
-
 				// Get the course with its relationships
 				var course = await _unitOfWork.GetRepository<Course>()
 					.SingleOrDefaultAsync(
@@ -182,12 +210,12 @@ namespace CDQTSystem_API.Services.Implements
 				if (course == null)
 					throw new BadHttpRequestException("Course not found");
 
-				// Check if faculty exists
-				var faculty = await _unitOfWork.GetRepository<Department>()
-					.SingleOrDefaultAsync(predicate: f => f.Id == request.DepartmentId);
+				// Check if department exists
+				var department = await _unitOfWork.GetRepository<Department>()
+					.SingleOrDefaultAsync(predicate: d => d.Id == request.DepartmentId);
 
-				if (faculty == null)
-					throw new BadHttpRequestException("Faculty not found");
+				if (department == null)
+					throw new BadHttpRequestException("Department not found");
 
 				// Update basic properties
 				course.CourseName = request.CourseName;
@@ -195,7 +223,6 @@ namespace CDQTSystem_API.Services.Implements
 				course.Description = request.Description;
 				course.LearningOutcomes = request.LearningOutcomes;
 				course.DepartmentId = request.DepartmentId;
-
 
 				// Clear and re-add prerequisites
 				course.PrerequisiteCourses.Clear();
@@ -222,7 +249,7 @@ namespace CDQTSystem_API.Services.Implements
 						course.CorequisiteCourses.Add(corequisite);
 					}
 				}
-
+				 _unitOfWork.GetRepository<Course>().UpdateAsync(course);
 				await _unitOfWork.CommitAsync();
 
 				// Reload the course with all relationships
@@ -234,6 +261,7 @@ namespace CDQTSystem_API.Services.Implements
 				throw;
 			}
 		}
+
 
 		public async Task<bool> DeleteCourse(Guid courseId)
 		{
@@ -406,7 +434,7 @@ namespace CDQTSystem_API.Services.Implements
 				Credits = course.Credits,
 				Description = course.Description,
 				LearningOutcomes = course.LearningOutcomes,
-				DepartmentId = course.DepartmentId, 
+				DepartmentId = course.DepartmentId,
 				DepartmentName = course.Department?.DepartmentName,
 				Prerequisites = course.PrerequisiteCourses?.Select(c => new CourseBasicInfo
 				{

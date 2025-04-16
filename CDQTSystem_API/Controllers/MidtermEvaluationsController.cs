@@ -9,11 +9,11 @@ namespace CDQTSystem_API.Controllers
 {
 	[ApiController]
 	[Route("api/v1/[controller]")]
-	public class MidtermEvaluationsController : ControllerBase
+	public class MidtermEvaluationsController : BaseController<MidtermEvaluationsController>
 	{
 		private readonly IMidtermEvaluationService _midtermEvaluationService;
 
-		public MidtermEvaluationsController(IMidtermEvaluationService midtermEvaluationService)
+		public MidtermEvaluationsController(ILogger<MidtermEvaluationsController> logger, IMidtermEvaluationService midtermEvaluationService) : base(logger)
 		{
 			_midtermEvaluationService = midtermEvaluationService;
 		}

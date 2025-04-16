@@ -15,10 +15,6 @@ public partial class ClassSection
 
     public Guid? ClassroomId { get; set; }
 
-    public string? Schedule { get; set; }
-
-    public string? Location { get; set; }
-
     public int MaxCapacity { get; set; }
 
     public bool? IsOnline { get; set; }

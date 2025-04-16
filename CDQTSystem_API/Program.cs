@@ -1,6 +1,3 @@
-
-
-
 using Microsoft.EntityFrameworkCore;
 using CDQTSystem_API.Constants;
 using CDQTSystem_API.Authorization;
@@ -58,13 +55,14 @@ namespace CourseRegistrationSystem
 			builder.Services.AddServices(builder.Configuration);
 			builder.Services.AddJwtValidation();
 			builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-			builder.Services.AddAutoMapperConfig(builder.Configuration);
 			builder.Services.AddConfigSwagger();
 			builder.Services.AddEndpointsApiExplorer();
 			builder.Services.AddSwaggerGen();
 			builder.Services.AddHttpClient();
-			builder.Services.AddControllers();
-
+			builder.Services.AddControllers().AddJsonOptions(options =>
+			{
+				options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+			});
 			var app = builder.Build();
 
 			app.UseSwagger();

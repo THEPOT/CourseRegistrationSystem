@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using MassTransit;
 using CDQTSystem_API.Messages;
 using static CDQTSystem_API.Constants.ApiEndPointConstant;
+using CDQTSystem_Domain.Paginate;
 
 namespace CDQTSystem_API.Services.Implements
 {
@@ -31,12 +32,25 @@ namespace CDQTSystem_API.Services.Implements
 			_requestClient = requestClient;
 		}
 
-		public async Task<List<CourseRegistrationResponse>> GetRegistrations(Guid studentId)
+		public async Task<IPaginate<CourseRegistrationResponse>> GetRegistrations(Guid studentId)
 		{
 			try
 			{
 				var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
-					.GetListAsync(
+					.GetPagingListAsync(
+						selector: r => new CourseRegistrationResponse
+						{
+							Id = r.Id,
+							CourseOfferingId = r.ClassSection.Id,
+							CourseCode = r.ClassSection.Course.CourseCode,
+							CourseName = r.ClassSection.Course.CourseName,
+							Credits = r.ClassSection.Course.Credits,
+							ProfessorId = r.ClassSection.ProfessorId ?? Guid.Empty,
+							ProfessorName = r.ClassSection.Professor.User.FullName,
+							Classroom = r.ClassSection.Classroom != null ? r.ClassSection.Classroom.RoomName : "Online",
+							Schedule = GetScheduleString(r.ClassSection),
+							Status = r.Status
+						},
 						predicate: r => r.StudentId == studentId,
 						include: q => q
 							.Include(r => r.ClassSection)
@@ -50,22 +64,7 @@ namespace CDQTSystem_API.Services.Implements
 								.ThenInclude(cs => cs.CourseRegistrations)
 					);
 
-				return registrations.Select(r => new CourseRegistrationResponse
-				{
-					RegistrationId = r.Id,
-					CourseOfferingId = r.ClassSection.Id,
-					CourseId = r.ClassSection.CourseId,
-					CourseCode = r.ClassSection.Course.CourseCode,
-					CourseName = r.ClassSection.Course.CourseName,
-					Credits = r.ClassSection.Course.Credits,
-					ProfessorId = r.ClassSection.ProfessorId ?? Guid.Empty,
-					ProfessorName = r.ClassSection.Professor?.User.FullName ?? "TBA",
-					Classroom = r.ClassSection.Classroom?.RoomName ?? "TBA",
-					Schedule = GetScheduleString(r.ClassSection),
-					Status = r.Status,
-					RegistrationDate = r.RegistrationDate,
-					TuitionStatus = r.TuitionStatus
-				}).ToList();
+				return registrations;
 			}
 			catch (Exception ex)
 			{

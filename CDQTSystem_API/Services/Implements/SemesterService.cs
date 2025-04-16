@@ -3,6 +3,7 @@ using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
 using CDQTSystem_API.Services.Interface;
 using CDQTSystem_Domain.Entities;
+using CDQTSystem_Domain.Paginate;
 using CDQTSystem_Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -42,17 +43,29 @@ namespace CDQTSystem_API.Services.Implements
             }
         }
 
-        public async Task<List<SemesterResponse>> GetAllSemesters()
-        {
-            var semesters = await _unitOfWork.GetRepository<Semester>()
-                .GetListAsync(
-                    orderBy: q => q.OrderByDescending(s => s.StartDate)
-                );
+		public async Task<IPaginate<SemesterResponse>> GetAllSemesters(int page, int size, string? search)
+		{
+			IPaginate<SemesterResponse> semestersResponse = await _unitOfWork.GetRepository<Semester>()
+				.GetPagingListAsync(
+					selector: s => new SemesterResponse
+					{
+						Id = s.Id,
+						SemesterName = s.SemesterName,
+						StartDate = s.StartDate,
+						AcademicYear = s.AcademicYear,
+						EndDate = s.EndDate,
+						Status = s.Status
+					},
+					predicate: s => string.IsNullOrEmpty(search) || s.SemesterName.Contains(search),
+					orderBy: q => q.OrderByDescending(s => s.StartDate),
+					page: page,
+					size: size
+				);
 
-            return _mapper.Map<List<SemesterResponse>>(semesters);
-        }
+			return semestersResponse;
+		}
 
-        public async Task<SemesterResponse> GetSemesterById(Guid id)
+		public async Task<SemesterResponse> GetSemesterById(Guid id)
         {
             var semester = await _unitOfWork.GetRepository<Semester>()
                 .SingleOrDefaultAsync(predicate: s => s.Id == id);

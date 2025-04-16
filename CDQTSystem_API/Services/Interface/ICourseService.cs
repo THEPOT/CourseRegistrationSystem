@@ -1,11 +1,12 @@
 ﻿using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
+using CDQTSystem_Domain.Paginate;
 
 namespace CDQTSystem_API.Services.Interface
 {
 	public interface ICourseService
 	{
-		Task<List<CourseResponses>> GetAllCourses();
+		Task<IPaginate<CourseResponses>> GetAllCourses(string? search, int page, int pageSize);
 		Task<CourseResponses> GetCourseByCode(string courseCode);
 		Task<CourseResponses> GetCourseById(Guid courseId);
 		Task<List<CourseResponses>> SearchCourses(string keyword);

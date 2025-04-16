@@ -11,8 +11,7 @@ namespace CDQTSystem_Domain.Paginate
 	{
 		public static async Task<IPaginate<T>> ToPaginateAsync<T>(this IQueryable<T> queryable, int page, int size, int firstPage = 1)
 		{
-			if (firstPage > page)
-				throw new ArgumentException($"page ({page}) must greater or equal than firstPage ({firstPage})");
+			if (page < firstPage) page = firstPage;
 			var total = await queryable.CountAsync();
 			var items = await queryable.Skip((page - firstPage) * size).Take(size).ToListAsync();
 			var totalPages = (int)Math.Ceiling(total / (double)size);

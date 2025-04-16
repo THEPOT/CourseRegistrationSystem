@@ -11,11 +11,11 @@ namespace CDQTSystem_API.Controllers
 {
 	[ApiController]
 	[Route("api/v1/[controller]")]
-	public class CourseEvaluationsController : ControllerBase
+	public class CourseEvaluationsController : BaseController<CourseEvaluationsController>
 	{
 		private readonly ICourseEvaluationService _courseEvaluationService;
 
-		public CourseEvaluationsController(ICourseEvaluationService courseEvaluationService)
+		public CourseEvaluationsController(ILogger<CourseEvaluationsController> logger, ICourseEvaluationService courseEvaluationService) : base(logger)
 		{
 			_courseEvaluationService = courseEvaluationService;
 		}

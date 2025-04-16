@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace CDQTSystem_Domain.Paginate
 {
+
 	public class Paginate<TResult> : IPaginate<TResult>
 	{
 		public int Size { get; set; }

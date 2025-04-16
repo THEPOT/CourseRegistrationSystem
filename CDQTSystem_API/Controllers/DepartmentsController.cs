@@ -7,10 +7,10 @@ namespace CDQTSystem_API.Controllers
 {
 	[ApiController]
 	[Route("api/v1/[controller]")]
-	public class DepartmentsController : ControllerBase
+	public class DepartmentsController : BaseController<DepartmentsController>
 	{
 		private readonly IDepartmentService _departmentService;
-		public DepartmentsController(IDepartmentService departmentService)
+		public DepartmentsController(ILogger<DepartmentsController> logger, IDepartmentService departmentService) : base(logger)
 		{
 			_departmentService = departmentService;
 		}

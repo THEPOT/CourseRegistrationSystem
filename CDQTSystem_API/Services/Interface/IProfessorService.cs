@@ -1,9 +1,10 @@
 using CDQTSystem_API.Payload.Response;
+using CDQTSystem_Domain.Paginate;
 
 namespace CDQTSystem_API.Services.Interface
 {
     public interface IProfessorService
     {
-        Task<List<ProfessorResponse>> GetAllProfessors();
+        Task<IPaginate<ProfessorResponse>> GetAllProfessors(int page, int size, string? search);
     }
 }

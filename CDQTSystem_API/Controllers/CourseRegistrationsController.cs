@@ -12,11 +12,11 @@ namespace CDQTSystem_API.Controllers
 {
 	[ApiController]
 	[Route("api/v1/[controller]")]
-	public class CourseRegistrationsController : ControllerBase
+	public class CourseRegistrationsController : BaseController<CourseRegistrationsController>
 	{
 		private readonly ICourseRegistrationService _registrationService;
 
-		public CourseRegistrationsController(ICourseRegistrationService registrationService)
+		public CourseRegistrationsController(ILogger<CourseRegistrationsController> logger, ICourseRegistrationService registrationService) : base(logger)
 		{
 			_registrationService = registrationService;
 		}

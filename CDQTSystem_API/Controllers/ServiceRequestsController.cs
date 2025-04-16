@@ -12,11 +12,11 @@ namespace CDQTSystem_API.Controllers
 {
 	[ApiController]
 	[Route("api/v1/[controller]")]
-	public class ServiceRequestsController : ControllerBase
+	public class ServiceRequestsController : BaseController<ServiceRequestsController>
 	{
 		private readonly IServiceRequestService _serviceRequestService;
 
-		public ServiceRequestsController(IServiceRequestService serviceRequestService)
+		public ServiceRequestsController(ILogger<ServiceRequestsController> logger, IServiceRequestService serviceRequestService) : base(logger)
 		{
 			_serviceRequestService = serviceRequestService;
 		}

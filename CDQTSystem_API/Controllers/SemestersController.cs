@@ -8,12 +8,12 @@ namespace CDQTSystem_API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    public class SemestersController : ControllerBase
-    {
+    public class SemestersController : BaseController<SemestersController>
+	{
         private readonly ISemesterService _semesterService;
 
-        public SemestersController(ISemesterService semesterService)
-        {
+        public SemestersController(ILogger<SemestersController> logger, ISemesterService semesterService) : base(logger)
+		{
             _semesterService = semesterService;
         }
 
@@ -46,9 +46,9 @@ namespace CDQTSystem_API.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Staff")]
-        public async Task<ActionResult<List<SemesterResponse>>> GetAllSemesters()
+        public async Task<ActionResult<List<SemesterResponse>>> GetAllSemesters([FromQuery] int page , [FromQuery] int size, [FromQuery] string? search)
         {
-            var semesters = await _semesterService.GetAllSemesters();
+            var semesters = await _semesterService.GetAllSemesters(page, size, search);
             return Ok(semesters);
         }
     }

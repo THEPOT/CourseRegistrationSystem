@@ -9,15 +9,13 @@ namespace CDQTSystem_API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    public class RegistrationPeriodsController : ControllerBase
-    {
+    public class RegistrationPeriodsController : BaseController<RegistrationPeriodsController>
+	{
         private readonly IRegistrationPeriodService _registrationPeriodService;
-        private readonly ILogger<RegistrationPeriodsController> _logger;
 
-        public RegistrationPeriodsController(IRegistrationPeriodService registrationPeriodService, ILogger<RegistrationPeriodsController> logger)
-        {
+        public RegistrationPeriodsController(IRegistrationPeriodService registrationPeriodService, ILogger<RegistrationPeriodsController> logger) : base(logger)
+		{
             _registrationPeriodService = registrationPeriodService;
-            _logger = logger;
         }
 
         [HttpPost]

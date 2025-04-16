@@ -101,7 +101,7 @@ namespace CDQTSystem_API.Extensions
 		public static IServiceCollection AddJwtValidation(this IServiceCollection services)
 		{
 			// Cấu hình JwtUtil từ cấu hình hệ thống (configuration)
-			services.AddSingleton<CDQTSystem_API.Utils.JwtUtil>(sp =>
+			services.AddSingleton<JwtUtil>(sp =>
 			{
 				var configuration = sp.GetRequiredService<IConfiguration>();
 				JwtUtil.Initialize(configuration);
@@ -175,11 +175,6 @@ namespace CDQTSystem_API.Extensions
 				}
 			});
 			});
-			return services;
-		}
-		public static IServiceCollection AddAutoMapperConfig(this IServiceCollection services, IConfiguration config)
-		{
-			services.AddAutoMapper(typeof(PaginateMapper));
 			return services;
 		}
 

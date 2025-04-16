@@ -5,6 +5,7 @@ using CDQTSystem_API.Payload.Response;
 using CDQTSystem_API.Services.Interface;
 using CDQTSystem_API.Utils;
 using CDQTSystem_Domain.Entities;
+using CDQTSystem_Domain.Paginate;
 using CDQTSystem_Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -50,26 +51,31 @@ namespace CDQTSystem_API.Services.Implements
 			};
 		}
 
-		public async Task<List<StudentInfoResponse>> GetAllStudentsInformation()
+		public async Task<IPaginate<StudentInfoResponse>> GetAllStudentsInformation(string? search, int page = 1, int size= 10)
 		{
-			var students = await _unitOfWork.GetRepository<Student>()
-				.GetListAsync(
+			IPaginate<StudentInfoResponse> students = await _unitOfWork.GetRepository<Student>()
+				.GetPagingListAsync(
+					selector: s => new StudentInfoResponse
+					{
+						Id = s.Id,
+						Mssv = s.User.UserCode,
+						FullName = s.User.FullName,
+						Email = s.User.Email,
+						MajorName = s.Major.MajorName,
+						EnrollmentDate = s.EnrollmentDate,
+						AdmissionDate = s.AdmissionDate,
+						AdmissionStatus = s.AdmissionStatus,
+						ImageUrl = s.User.Image
+					},
+					predicate: s => string.IsNullOrEmpty(search) || s.User.FullName.Contains(search) ||
+									s.User.UserCode.Contains(search),
+					page: page,
+					size: size,
 					include: q => q.Include(s => s.User)
 							  .Include(s => s.Major)
 				);
+			return students;
 
-			return students.Select(student => new StudentInfoResponse
-			{
-				Id = student.Id,
-				Mssv = student.User.UserCode,
-				FullName = student.User.FullName,
-				Email = student.User.Email,
-				MajorName = student.Major.MajorName,
-				EnrollmentDate = student.EnrollmentDate,
-				AdmissionDate = student.AdmissionDate,
-				AdmissionStatus = student.AdmissionStatus,
-				ImageUrl = student.User.Image
-			}).ToList();
 		}
 
 		public async Task<List<ScholarshipInfo>> GetStudentScholarshipById(Guid studentId)
@@ -247,6 +253,171 @@ namespace CDQTSystem_API.Services.Implements
 				TotalCreditsPassed = totalCreditsPassed
 			};
 		}
+
+		public async Task<StudentDetailedTranscriptResponse> GetStudentDetailedTranscript(Guid studentId)
+		{
+			var student = await _unitOfWork.GetRepository<Student>()
+				.SingleOrDefaultAsync(
+					predicate: s => s.Id == studentId,
+					include: q => q
+						.Include(s => s.User)
+						.Include(s => s.Major)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
+							.ThenInclude(co => co.Course)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
+							.ThenInclude(co => co.Semester)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.Grades)
+					.Include(s => s.CourseRegistrations)
+						.ThenInclude(r => r.ClassSection)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
+							.ThenInclude(cs => cs.MidtermEvaluations)
+				);
+
+			if (student == null)
+				return null;
+
+			// Group course registrations by semester
+			var semesterGroups = student.CourseRegistrations
+				.Where(r => r.Status != "Dropped")
+				.GroupBy(r => r.ClassSection.Semester.SemesterName)
+				.OrderBy(g => g.Key);
+
+			var response = new StudentDetailedTranscriptResponse
+			{
+				Mssv = student.User.UserCode,
+				StudentName = student.User.FullName,
+				MajorName = student.Major.MajorName,
+				TotalCredits = 0,
+				TotalCreditsPassed = 0,
+				CumulativeGPA = 0
+			};
+
+			decimal totalWeightedPoints = 0;
+			int totalCredits = 0;
+
+			foreach (var semesterGroup in semesterGroups)
+			{
+				var semesterName = semesterGroup.Key;
+				var semesterCourses = new List<CourseTranscriptDetail>();
+				decimal semesterWeightedPoints = 0;
+				int semesterCredits = 0;
+				int semesterCreditsPassed = 0;
+
+				foreach (var registration in semesterGroup)
+				{
+					// Get the final grade if available
+					var finalGrade = registration.Grades.OrderByDescending(g => g.QualityPoints).FirstOrDefault();
+
+					// Convert numerical grade to letter grade
+					string letterGrade = finalGrade != null ? ConvertToLetterGrade(finalGrade.QualityPoints) : "-";
+
+					// Determine if the course was passed
+					bool passed = finalGrade != null && finalGrade.QualityPoints >= 1.0m;
+					string result = finalGrade != null ? (passed ? "Đạt" : "Không đạt") : "Chưa có điểm";
+
+					var midtermEvaluation = registration.ClassSection.MidtermEvaluations
+					.FirstOrDefault(me => me.CourseId == registration.ClassSection.CourseId);
+
+					decimal? midtermScore = midtermEvaluation != null
+					? ParseNullableDecimal(midtermEvaluation.Recommendation)
+					: null;
+
+					decimal? finalScore = finalGrade != null ? ExtractFinalScore(finalGrade.GradeValue) : null;
+
+					var courseDetail = new CourseTranscriptDetail
+					{
+						CourseCode = registration.ClassSection.Course.CourseCode,
+						CourseName = registration.ClassSection.Course.CourseName,
+						Credits = registration.ClassSection.Course.Credits,
+						MidtermScore = midtermScore,
+						FinalScore = finalScore,
+						LetterGrade = letterGrade,
+						Result = result
+					};
+
+					semesterCourses.Add(courseDetail);
+
+					// Update semester statistics
+					int credits = registration.ClassSection.Course.Credits;
+					semesterCredits += credits;
+
+					if (finalGrade != null)
+					{
+						semesterWeightedPoints += finalGrade.QualityPoints * credits;
+						if (passed)
+							semesterCreditsPassed += credits;
+					}
+				}
+
+				// Calculate semester GPA
+				decimal semesterGPA = semesterCredits > 0
+					? Math.Round(semesterWeightedPoints / semesterCredits, 2)
+					: 0;
+
+				var semesterTranscript = new SemesterTranscript
+				{
+					SemesterName = semesterName,
+					SemesterGPA = semesterGPA,
+					SemesterCredits = semesterCredits,
+					Courses = semesterCourses
+				};
+
+				response.Semesters.Add(semesterTranscript);
+
+				// Update cumulative statistics
+				totalWeightedPoints += semesterWeightedPoints;
+				totalCredits += semesterCredits;
+				response.TotalCreditsPassed += semesterCreditsPassed;
+			}
+
+			// Calculate cumulative GPA
+			response.TotalCredits = totalCredits;
+			response.CumulativeGPA = totalCredits > 0
+				? Math.Round(totalWeightedPoints / totalCredits, 2)
+				: 0;
+
+			return response;
+		}
+
+		private string ConvertToLetterGrade(decimal qualityPoints)
+		{
+			if (qualityPoints >= 8.5m) return "A";
+			if (qualityPoints >= 8.0m) return "B+";
+			if (qualityPoints >= 7.0m) return "B";
+			if (qualityPoints >= 6.5m) return "C+";
+			if (qualityPoints >= 5.5m) return "C";
+			if (qualityPoints >= 5.0m) return "D+";
+			if (qualityPoints >= 4.0m) return "D";
+			return "F";
+		}
+
+		private decimal? ParseNullableDecimal(string value)
+		{
+			if (string.IsNullOrEmpty(value))
+				return null;
+
+			if (decimal.TryParse(value, out decimal result))
+				return result;
+
+			return null;
+		}
+
+		private decimal? ExtractFinalScore(string gradeValue)
+		{
+			if (string.IsNullOrEmpty(gradeValue))
+				return null;
+
+			var parts = gradeValue.Split(' ');
+			if (decimal.TryParse(parts[0], out decimal result))
+				return result;
+
+			return null;
+		}
+
 
 		public async Task<decimal> GetStudentTermGPA(Guid studentId, Guid termId)
 		{

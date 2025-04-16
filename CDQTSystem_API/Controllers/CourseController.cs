@@ -8,18 +8,18 @@ namespace CDQTSystem_API.Controllers
 {
 	[ApiController]
 	[Route("api/v1/[controller]")]
-	public class CourseController : ControllerBase
+	public class CourseController : BaseController<CourseController>
 	{
 		private readonly ICourseService _courseService;
-		public CourseController(ICourseService courseService)
+		public CourseController(ILogger<CourseController> logger, ICourseService courseService) : base(logger)
 		{
 			_courseService = courseService;
 		}
 		[HttpGet]
 		[Authorize]
-		public async Task<ActionResult<List<CourseResponses>>> GetAllCourses()
+		public async Task<ActionResult<List<CourseResponses>>> GetAllCourses([FromQuery] int page, [FromQuery] int size, [FromQuery] string? search )
 		{
-			var courses = await _courseService.GetAllCourses();
+			var courses = await _courseService.GetAllCourses(search, page, size);
 			return Ok(courses);
 		}
 

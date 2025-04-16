@@ -106,8 +106,6 @@ public partial class CdqtsystemContext : DbContext
 
             entity.Property(e => e.Id).HasDefaultValueSql("(newid())");
             entity.Property(e => e.IsOnline).HasDefaultValue(false);
-            entity.Property(e => e.Location).HasMaxLength(255);
-            entity.Property(e => e.Schedule).HasMaxLength(255);
 
             entity.HasOne(d => d.Classroom).WithMany(p => p.ClassSections)
                 .HasForeignKey(d => d.ClassroomId)

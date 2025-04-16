@@ -1,16 +1,18 @@
 ﻿using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
+using CDQTSystem_Domain.Paginate;
 
 namespace CDQTSystem_API.Services.Interface
 {
 	public interface IStudentsService
 	{
 		Task<StudentInfoResponse> GetStudentInformationById(Guid id);
-		Task<List<StudentInfoResponse>> GetAllStudentsInformation();
+		Task<IPaginate<StudentInfoResponse>> GetAllStudentsInformation(string? search, int page, int size);
 		Task<StudentFinancialInfoResponse> GetStudentFinancialInfo(Guid studentId);
 		Task<List<ScholarshipInfo>> GetStudentScholarshipById(Guid studentId);
 		Task<StudentProgramResponse> GetStudentProgramAndCourses(Guid studentId);
 		Task<StudentTranscriptResponse> GetStudentTranscript(Guid studentId);
+		Task<StudentDetailedTranscriptResponse> GetStudentDetailedTranscript(Guid studentId);
 		Task<StudentTuitionResponse> GetStudentTuition(Guid studentId);
 		Task<List<StudentScholarshipResponse>> GetAllStudentScholarships();
 		Task<List<StudentProgramCourseResponse>> GetAllStudentProgramsAndCourses();
