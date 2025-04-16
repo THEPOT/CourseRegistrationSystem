@@ -23,12 +23,12 @@ namespace CDQTSystem_API.Services.Implements
 
 		public async Task<List<ServiceRequestResponse>> GetAllServiceRequests(string status = null)
 		{
-			var query = _unitOfWork.GetRepository<ServiceRequest>().GetListAsync(
+			var requests = await _unitOfWork.GetRepository<ServiceRequest>().GetListAsync(
 				include: q => q.Include(sr => sr.Student)
 							  .ThenInclude(s => s.User)
 			);
 
-			var requests = await query;
+
 
 			if (!string.IsNullOrEmpty(status))
 			{
@@ -40,7 +40,7 @@ namespace CDQTSystem_API.Services.Implements
 				Id = sr.Id,
 				StudentId = sr.StudentId,
 				StudentName = sr.Student.User.FullName,
-				Mssv = sr.Student.Mssv,
+				Mssv = sr.Student.User.UserCode,
 				ServiceType = sr.ServiceType,
 				RequestDate = sr.RequestDate,
 				Status = sr.Status,
@@ -69,7 +69,7 @@ namespace CDQTSystem_API.Services.Implements
 				Id = sr.Id,
 				StudentId = sr.StudentId,
 				StudentName = sr.Student.User.FullName,
-				Mssv = sr.Student.Mssv,
+				Mssv = sr.Student.User.UserCode,
 				ServiceType = sr.ServiceType,
 				RequestDate = sr.RequestDate,
 				Status = sr.Status,
@@ -95,7 +95,7 @@ namespace CDQTSystem_API.Services.Implements
 				Id = request.Id,
 				StudentId = request.StudentId,
 				StudentName = request.Student.User.FullName,
-				Mssv = request.Student.Mssv,
+				Mssv = request.Student.User.UserCode,
 				ServiceType = request.ServiceType,
 				RequestDate = request.RequestDate,
 				Status = request.Status,
@@ -146,7 +146,7 @@ namespace CDQTSystem_API.Services.Implements
 					Id = serviceRequest.Id,
 					StudentId = serviceRequest.StudentId,
 					StudentName = student.User.FullName,
-					Mssv = student.Mssv,
+					Mssv = student.User.UserCode,
 					ServiceType = serviceRequest.ServiceType,
 					RequestDate = serviceRequest.RequestDate,
 					Status = serviceRequest.Status,
@@ -196,7 +196,7 @@ namespace CDQTSystem_API.Services.Implements
 					Id = serviceRequest.Id,
 					StudentId = serviceRequest.StudentId,
 					StudentName = serviceRequest.Student.User.FullName,
-					Mssv = serviceRequest.Student.Mssv,
+					Mssv = serviceRequest.Student.User.UserCode,
 					ServiceType = serviceRequest.ServiceType,
 					RequestDate = serviceRequest.RequestDate,
 					Status = serviceRequest.Status,

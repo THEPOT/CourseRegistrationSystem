@@ -9,81 +9,87 @@ namespace CDQTSystem_API.Controllers
 {
 	[ApiController]
 	[Route("api/v1/[controller]")]
-	public class MidtermEvaluationsController : ControllerBase
+	public class MidtermEvaluationsController : BaseController<MidtermEvaluationsController>
 	{
-		private readonly IMidtermEvaluationService _evaluationService;
+		private readonly IMidtermEvaluationService _midtermEvaluationService;
 
-		public MidtermEvaluationsController(IMidtermEvaluationService evaluationService)
+		public MidtermEvaluationsController(ILogger<MidtermEvaluationsController> logger, IMidtermEvaluationService midtermEvaluationService) : base(logger)
 		{
-			_evaluationService = evaluationService;
+			_midtermEvaluationService = midtermEvaluationService;
 		}
 
-		[HttpGet("course-offering/{courseOfferingId}/students")]
-		[Authorize(Roles = "Professor,Staff")]
-		public async Task<ActionResult<List<StudentForEvaluationResponse>>> GetStudentsForEvaluation(Guid courseOfferingId)
-		{
-			var students = await _evaluationService.GetStudentsForEvaluation(courseOfferingId);
-			return Ok(students);
-		}
-
-		[HttpGet("course-offering/{courseOfferingId}/summary")]
-		[Authorize(Roles = "Student,Professor,Staff")]
-		public async Task<ActionResult<MidtermEvaluationSummaryResponse>> GetMidtermEvaluationSummary(Guid courseOfferingId)
-		{
-			try
-			{
-				var summary = await _evaluationService.GetMidtermEvaluationSummary(courseOfferingId);
-				return Ok(summary);
-			}
-			catch (BadHttpRequestException ex)
-			{
-				return BadRequest(ex.Message);
-			}
-		}
-
-		[HttpPost("single")]
+		[HttpPost]
 		[Authorize(Roles = "Professor")]
-		public async Task<ActionResult> CreateMidtermEvaluation([FromBody] MidtermEvaluationCreateRequest request)
+		public async Task<IActionResult> CreateEvaluation([FromBody] CreateMidtermEvaluationRequest request)
 		{
-			try
-			{
-				var result = await _evaluationService.CreateMidtermEvaluation(request);
-				return Ok(new { success = result });
-			}
-			catch (BadHttpRequestException ex)
-			{
-				return BadRequest(ex.Message);
-			}
+			var result = await _midtermEvaluationService.CreateMidtermEvaluation(request);
+			return CreatedAtAction(nameof(GetEvaluation), new { id = result.Id }, result);
 		}
 
-		[HttpPost("batch")]
-		[Authorize(Roles = "Professor")]
-		public async Task<ActionResult> CreateBatchMidtermEvaluations([FromBody] MidtermEvaluationBatchRequest request)
+		[HttpGet("{id:guid}")]
+		[Authorize(Roles = "Professor,Student,Staff")]
+		public async Task<IActionResult> GetEvaluation(Guid id)
 		{
-			try
-			{
-				var result = await _evaluationService.CreateBatchMidtermEvaluations(request);
-				return Ok(new { success = result });
-			}
-			catch (BadHttpRequestException ex)
-			{
-				return BadRequest(ex.Message);
-			}
+			var evaluation = await _midtermEvaluationService.GetMidtermEvaluation(id);
+			if (evaluation == null)
+				return NotFound();
+			return Ok(evaluation);
 		}
 
-		[HttpPut("{evaluationId}")]
+		[HttpPut("{id:guid}")]
 		[Authorize(Roles = "Professor")]
-		public async Task<ActionResult> UpdateMidtermEvaluation(Guid evaluationId, [FromBody] MidtermEvaluationCreateRequest request)
+		public async Task<IActionResult> UpdateEvaluation(Guid id, [FromBody] UpdateMidtermEvaluationRequest request)
 		{
-			try
-			{
-				var result = await _evaluationService.UpdateMidtermEvaluation(evaluationId, request);
-				return Ok(new { success = result });
-			}
-			catch (BadHttpRequestException ex)
-			{
-				return BadRequest(ex.Message);
-			}
+			var result = await _midtermEvaluationService.UpdateMidtermEvaluation(id, request);
+			return Ok(result);
+		}
+
+		[HttpGet("professor/{semesterId:guid}")]
+		[Authorize(Roles = "Professor")]
+		public async Task<IActionResult> GetProfessorEvaluations(Guid semesterId)
+		{
+			var evaluations = await _midtermEvaluationService.GetMidtermEvaluationsByProfessor(Guid.Empty, semesterId);
+			return Ok(evaluations);
+		}
+
+		[HttpGet("student/{studentId:guid}")]
+		[Authorize(Roles = "Student,Staff")]
+		public async Task<IActionResult> GetStudentEvaluations(Guid studentId, [FromQuery] Guid? semesterId = null)
+		{
+			var evaluations = await _midtermEvaluationService.GetStudentMidtermEvaluations(studentId, semesterId);
+			return Ok(evaluations);
+		}
+
+		[HttpPost("period")]
+		[Authorize(Roles = "Staff")]
+		public async Task<IActionResult> SetEvaluationPeriod([FromBody] MidtermEvaluationPeriodRequest request)
+		{
+			var result = await _midtermEvaluationService.CreateOrUpdateEvaluationPeriod(request);
+			return Ok(result);
+		}
+
+		[HttpGet("period/current")]
+		[Authorize]
+		public async Task<IActionResult> GetCurrentPeriod()
+		{
+			var period = await _midtermEvaluationService.GetCurrentEvaluationPeriod();
+			return Ok(period);
+		}
+
+		[HttpGet("summary/{semesterId:guid}")]
+		[Authorize(Roles = "Staff")]
+		public async Task<IActionResult> GetSummary(Guid semesterId)
+		{
+			var summary = await _midtermEvaluationService.GetMidtermEvaluationSummary(semesterId);
+			return Ok(summary);
+		}
+
+		[HttpGet("export/{semesterId:guid}")]
+		[Authorize(Roles = "Staff")]
+		public async Task<IActionResult> ExportEvaluations(Guid semesterId)
+		{
+			var fileData = await _midtermEvaluationService.ExportMidtermEvaluations(semesterId);
+			return File(fileData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"midterm-evaluations-{semesterId}.xlsx");
 		}
 	}
 }

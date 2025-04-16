@@ -25,12 +25,19 @@ namespace CDQTSystem_API.Services.Implements
 			return Task.FromResult(departmentResponse);
 		}
 
-		public Task<List<DepartmentResponse>> GetAllDepartments()
-		{
-			var departments = _unitOfWork.GetRepository<Department>().GetListAsync();
-			var departmentResponses = _mapper.Map<List<DepartmentResponse>>(departments);
-			return Task.FromResult(departmentResponses);
-		}
+	public async Task<List<DepartmentResponse>> GetAllDepartments()
+	{
+		var departments = await _unitOfWork.GetRepository<Department>().GetListAsync(
+			include: d => d.Include(d => d.Courses)
+				.Include(d => d.Professors)
+				.Include(d => d.Majors)
+				.Include(d => d.Scholarships)
+				.Include(d => d.FinancialAids)
+				.Include(d => d.AdministrativeStaffs),
+			orderBy: q => q.OrderBy(d => d.DepartmentName)
+		);
+			return _mapper.Map<List<DepartmentResponse>>(departments);
+	}
 
 		public Task<DepartmentResponse> GetDepartmentById(Guid departmentId)
 		{

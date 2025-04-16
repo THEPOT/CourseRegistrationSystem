@@ -1,4 +1,5 @@
-﻿using CDQTSystem_API.Services.Implements;
+﻿using CDQTSystem_API.Consumers;
+using CDQTSystem_API.Services.Implements;
 using CDQTSystem_API.Services.Interface;
 using CDQTSystem_API.Utils;
 using CDQTSystem_Domain.Entities;
@@ -6,6 +7,7 @@ using CDQTSystem_Domain.Paginate;
 using CDQTSystem_Repository.Implement;
 using CDQTSystem_Repository.Interfaces;
 using Google.Apis.Storage.v1;
+using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -19,7 +21,7 @@ namespace CDQTSystem_API.Extensions
 	{
 		public static IServiceCollection AddUnitOfWork(this IServiceCollection services)
 		{
-			services.AddScoped<IUnitOfWork<UniversityDbContext>, UnitOfWork<UniversityDbContext>>();
+			services.AddScoped<IUnitOfWork<CdqtsystemContext>, UnitOfWork<CdqtsystemContext>>();
 			services.AddScoped<IUnitOfWork<DbContext>, UnitOfWork<DbContext>>();
 
 			return services;
@@ -30,12 +32,42 @@ namespace CDQTSystem_API.Extensions
 			IConfiguration configuration = new ConfigurationBuilder()
 				.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true).Build();
 
-			services.AddDbContext<UniversityDbContext>(options =>
+			services.AddDbContext<CdqtsystemContext>(options =>
 				options.UseSqlServer(CreateConnectionString(configuration),
 					sqlServerOptions => sqlServerOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery))
 			);
 
-			services.AddScoped<DbContext>(provider => provider.GetService<UniversityDbContext>());
+			services.AddScoped<DbContext>(provider => provider.GetService<CdqtsystemContext>());
+			return services;
+		}
+
+		public static IServiceCollection AddMassTransit(this IServiceCollection services)
+		{
+			services.AddMassTransit(x =>
+			{
+				x.AddConsumer<CourseRegistrationConsumer>();
+
+				x.UsingRabbitMq((context, cfg) =>
+				{
+					cfg.Host("localhost", "/", h =>
+					{
+						h.Username("guest");
+						h.Password("guest");
+					});
+
+					cfg.ConfigureEndpoints(context);
+
+					cfg.UseMessageRetry(r =>
+					{
+						r.Intervals(100, 500, 1000);
+					});
+
+					cfg.UseTimeout(t =>
+					{
+						t.Timeout = TimeSpan.FromSeconds(60);
+					});
+				});
+			});
 			return services;
 		}
 
@@ -44,6 +76,7 @@ namespace CDQTSystem_API.Extensions
 			var connectionString = configuration.GetValue<string>("ConnectionStrings:DefaultConnection");
 			return connectionString;
 		}
+
 
 		public static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
 		{
@@ -59,14 +92,16 @@ namespace CDQTSystem_API.Extensions
 			services.AddScoped<IStudentsService, StudentsService>();
 			services.AddScoped<IUsersService, UsersService>();
 			services.AddScoped<IProfessorService, ProfessorService>();
-
+			services.AddScoped<IDepartmentService, DepartmentService>();
+			services.AddScoped<IMidtermEvaluationService, MidtermEvaluationService>();
+			services.AddScoped<ICourseEvaluationService, CourseEvaluationService>();
 			return services;
 		}
 
 		public static IServiceCollection AddJwtValidation(this IServiceCollection services)
 		{
 			// Cấu hình JwtUtil từ cấu hình hệ thống (configuration)
-			services.AddSingleton<CDQTSystem_API.Utils.JwtUtil>(sp =>
+			services.AddSingleton<JwtUtil>(sp =>
 			{
 				var configuration = sp.GetRequiredService<IConfiguration>();
 				JwtUtil.Initialize(configuration);
@@ -140,11 +175,6 @@ namespace CDQTSystem_API.Extensions
 				}
 			});
 			});
-			return services;
-		}
-		public static IServiceCollection AddAutoMapperConfig(this IServiceCollection services, IConfiguration config)
-		{
-			services.AddAutoMapper(typeof(PaginateMapper));
 			return services;
 		}
 

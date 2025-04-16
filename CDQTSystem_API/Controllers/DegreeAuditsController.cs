@@ -10,11 +10,11 @@ namespace CDQTSystem_API.Controllers
 {
 	[ApiController]
 	[Route("api/v1/[controller]")]
-	public class DegreeAuditsController : ControllerBase
+	public class DegreeAuditsController : BaseController<DegreeAuditsController>
 	{
 		private readonly IDegreeAuditService _degreeAuditService;
 
-		public DegreeAuditsController(IDegreeAuditService degreeAuditService)
+		public DegreeAuditsController(ILogger<DegreeAuditsController> logger, IDegreeAuditService degreeAuditService) : base(logger)
 		{
 			_degreeAuditService = degreeAuditService;
 		}

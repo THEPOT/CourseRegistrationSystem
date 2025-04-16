@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using MassTransit;
 using CDQTSystem_API.Messages;
 using static CDQTSystem_API.Constants.ApiEndPointConstant;
+using CDQTSystem_Domain.Paginate;
 
 namespace CDQTSystem_API.Services.Implements
 {
@@ -31,12 +32,25 @@ namespace CDQTSystem_API.Services.Implements
 			_requestClient = requestClient;
 		}
 
-		public async Task<List<CourseRegistrationResponse>> GetRegistrations(Guid studentId)
+		public async Task<IPaginate<CourseRegistrationResponse>> GetRegistrations(Guid studentId)
 		{
 			try
 			{
 				var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
-					.GetListAsync(
+					.GetPagingListAsync(
+						selector: r => new CourseRegistrationResponse
+						{
+							Id = r.Id,
+							CourseOfferingId = r.ClassSection.Id,
+							CourseCode = r.ClassSection.Course.CourseCode,
+							CourseName = r.ClassSection.Course.CourseName,
+							Credits = r.ClassSection.Course.Credits,
+							ProfessorId = r.ClassSection.ProfessorId ?? Guid.Empty,
+							ProfessorName = r.ClassSection.Professor.User.FullName,
+							Classroom = r.ClassSection.Classroom != null ? r.ClassSection.Classroom.RoomName : "Online",
+							Schedule = GetScheduleString(r.ClassSection),
+							Status = r.Status
+						},
 						predicate: r => r.StudentId == studentId,
 						include: q => q
 							.Include(r => r.ClassSection)
@@ -50,22 +64,7 @@ namespace CDQTSystem_API.Services.Implements
 								.ThenInclude(cs => cs.CourseRegistrations)
 					);
 
-				return registrations.Select(r => new CourseRegistrationResponse
-				{
-					RegistrationId = r.Id,
-					CourseOfferingId = r.ClassSection.Id,
-					CourseId = r.ClassSection.CourseId,
-					CourseCode = r.ClassSection.Course.CourseCode,
-					CourseName = r.ClassSection.Course.CourseName,
-					Credits = r.ClassSection.Course.Credits,
-					ProfessorId = r.ClassSection.ProfessorId ?? Guid.Empty,
-					ProfessorName = r.ClassSection.Professor?.User.FullName ?? "TBA",
-					Classroom = r.ClassSection.Classroom?.RoomName ?? "TBA",
-					Schedule = GetScheduleString(r.ClassSection),
-					Status = r.Status,
-					RegistrationDate = r.RegistrationDate,
-					TuitionStatus = r.TuitionStatus
-				}).ToList();
+				return registrations;
 			}
 			catch (Exception ex)
 			{
@@ -330,11 +329,11 @@ namespace CDQTSystem_API.Services.Implements
 				CourseCode = r.ClassSection.Course.CourseCode,
 				CourseName = r.ClassSection.Course.CourseName,
 				Credits = r.ClassSection.Course.Credits,
-				ProfessorId = r.ClassSection.ProfessorId ?? Guid.Empty,
+				ProfessorId = r.ClassSection.ProfessorId,
 				ProfessorName = r.ClassSection.Professor.User.FullName,
 				Classroom = r.ClassSection.Classroom?.RoomName ?? "Online",
 				Schedule = GetScheduleString(r.ClassSection),
-				Capacity = r.ClassSection.Capacity,
+				Capacity = r.ClassSection.MaxCapacity,
 				RegisteredCount = r.ClassSection.CourseRegistrations?.Count ?? 0
 			}).ToList();
 		}
@@ -356,7 +355,7 @@ namespace CDQTSystem_API.Services.Implements
 				.Select(r => new StudentInfoResponse
 				{
 					Id = r.Student.Id,
-					Mssv = r.Student.Mssv,
+					Mssv = r.Student.User.UserCode,
 					FullName = r.Student.User.FullName,
 					Email = r.Student.User.Email,
 					MajorName = r.Student.Major.MajorName,
@@ -394,7 +393,7 @@ namespace CDQTSystem_API.Services.Implements
 				);
 
 			return offerings
-				.Where(o => (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0) < o.Capacity) // Chỉ lấy các khóa học còn slot
+				.Where(o => (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0) < o.MaxCapacity) // Chỉ lấy các khóa học còn slot
 				.Select(o => new AvailableCourseResponse
 				{
 					CourseOfferingId = o.Id,
@@ -404,15 +403,15 @@ namespace CDQTSystem_API.Services.Implements
 					ProfessorId = o.ProfessorId,
 					ProfessorName = o.Professor?.User.FullName,
 					Schedule = GetScheduleString(o),
-					Capacity = o.Capacity,
+					Capacity = o.MaxCapacity,
 					RegisteredCount = o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0,
-					AvailableSlots = o.Capacity - (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0),
+					AvailableSlots = o.MaxCapacity - (o.CourseRegistrations?.Count(r => r.Status != "Dropped") ?? 0),
 					PrerequisitesSatisfied = false,
 					Prerequisites = o.Course.PrerequisiteCourses?.Select(p => p.CourseCode).ToList() ?? new List<string>()
 				}).ToList();
 		}
 
-		public async Task<List<AvailableCourseResponse>> GetAvailableCourseOfferingsForStudent(Guid studentId)
+		public async Task<List<AvailableCourseResponse>> GetAvailableCourseOfferingsForStudent(Guid userId)
 		{
 			var offerings = await GetAvailableCourseOfferings();
 			
@@ -420,7 +419,7 @@ namespace CDQTSystem_API.Services.Implements
 			
 			var completedCourses = await _unitOfWork.GetRepository<CourseRegistration>()
 				.GetListAsync(
-					predicate: r => r.StudentId == studentId && 
+					predicate: r => r.StudentId == userId && 
 								   r.Status == "Completed",
 					include: q => q
 						.Include(r => r.ClassSection)

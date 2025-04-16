@@ -6,23 +6,23 @@ using Microsoft.AspNetCore.Mvc;
 namespace CDQTSystem_API.Controllers
 {
 	[ApiController]
-	[Route("api/[controller]")]
-	public class DepartmentController : ControllerBase
+	[Route("api/v1/[controller]")]
+	public class DepartmentsController : BaseController<DepartmentsController>
 	{
 		private readonly IDepartmentService _departmentService;
-		public DepartmentController(IDepartmentService departmentService)
+		public DepartmentsController(ILogger<DepartmentsController> logger, IDepartmentService departmentService) : base(logger)
 		{
 			_departmentService = departmentService;
 		}
 		[HttpGet]
-		[Authorize(Roles = "Staff")]
+		[Authorize]
 		public async Task<IActionResult> GetAllDepartments()
 		{
 			var departments = await _departmentService.GetAllDepartments();
 			return Ok(departments);
 		}
 		[HttpPost]
-		[Authorize(Roles = "Staff")]
+		[Authorize]
 		public async Task<IActionResult> CreateDepartment([FromBody] DepartmentCreateRequest request)
 		{
 			try
@@ -36,7 +36,7 @@ namespace CDQTSystem_API.Controllers
 			}
 		}
 		[HttpGet("{departmentId:guid}")]
-		[Authorize(Roles = "Staff")]
+		[Authorize]
 		public async Task<IActionResult> GetDepartment(Guid id)
 		{
 			var department = await _departmentService.GetDepartmentById(id);
@@ -45,8 +45,8 @@ namespace CDQTSystem_API.Controllers
 			return Ok(department);
 		}
 		[HttpPut]
-		[Authorize(Roles = "Staff")]
-		public async Task<IActionResult> UpdateDepartment(Guid id, [FromBody] DepartmentUpdateRequest request)
+		[Authorize]
+	public async Task<IActionResult> UpdateDepartment(Guid id, [FromBody] DepartmentUpdateRequest request)
 		{
 			try
 			{

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace CDQTSystem_API.Services.Implements
@@ -36,80 +37,63 @@ namespace CDQTSystem_API.Services.Implements
 				CourseOfferingId = co.Id,
 				CourseCode = co.Course.CourseCode,
 				CourseName = co.Course.CourseName,
-				ProfessorId = co.ProfessorId ?? Guid.Empty, 
+				ProfessorId = co.ProfessorId ?? Guid.Empty,
 				ProfessorName = co.Professor.User.FullName
 			}).ToList();
 		}
 
 		public async Task<List<CourseEvaluationSummaryResponse>> GetCourseEvaluationSummaries(Guid termId)
 		{
-			var courseOfferings = await _unitOfWork.GetRepository<ClassSection>()
-				.GetListAsync(
-					predicate: co => co.SemesterId == termId, // Change TermId to SemesterId
-					include: q => q
-						.Include(co => co.Course)
-						.Include(co => co.CourseEvaluations)
-				);
-
-			return courseOfferings
-				.GroupBy(co => new { co.Course.CourseCode, co.Course.CourseName })
-				.Select(group => new CourseEvaluationSummaryResponse
-				{
-					CourseCode = group.Key.CourseCode,
-					CourseName = group.Key.CourseName,
-					AverageRating = group.SelectMany(co => co.CourseEvaluations).Any()
-						? group.SelectMany(co => co.CourseEvaluations).Average(ce => ce.Rating)
-						: 0,
-					TotalEvaluations = group.SelectMany(co => co.CourseEvaluations).Count(),
-					Comments = group.SelectMany(co => co.CourseEvaluations)
-						.Where(ce => !string.IsNullOrEmpty(ce.Comments))
-						.Select(ce => ce.Comments)
-						.ToList()
-				}).ToList();
+			throw new NotImplementedException();
 		}
 
 		public async Task<bool> CreateCourseEvaluation(CourseEvaluationCreateRequest request)
 		{
-			try
-			{
-				var courseOffering = await _unitOfWork.GetRepository<ClassSection>()
-					.SingleOrDefaultAsync(predicate: co => co.Id == request.CourseOfferingId);
+			throw new NotImplementedException();
+		}
+		public async Task<bool> SubmitCourseEvaluation(SubmitCourseEvaluationRequest request)
+		{
+			throw new NotImplementedException();
+		}
 
-				if (courseOffering == null)
-					throw new BadHttpRequestException("Course offering not found");
+		public Task<StudentEvaluationStatusResponse> GetStudentEvaluationStatus(Guid studentId, Guid semesterId)
+		{
+			throw new NotImplementedException();
+		}
 
-				// Check if student has already evaluated this course
-				var existingEvaluation = await _unitOfWork.GetRepository<CourseEvaluation>()
-					.SingleOrDefaultAsync(predicate: ce =>
-						ce.ClassSectionId == request.CourseOfferingId && // Change CourseOfferingId to ClassSectionId
-						ce.StudentId == request.StudentId);
+		public Task<List<CourseEvaluationSummaryResponse>> GetProfessorEvaluations(Guid professorId, Guid semesterId)
+		{
+			throw new NotImplementedException();
+		}
 
-				if (existingEvaluation != null)
-					throw new BadHttpRequestException("You have already evaluated this course");
+		public Task<CourseEvaluationPeriodResponse> CreateOrUpdateEvaluationPeriod(CourseEvaluationPeriodRequest request)
+		{
+			throw new NotImplementedException();
+		}
 
-				// Create new evaluation
-				var evaluation = new CourseEvaluation
-				{
-					Id = Guid.NewGuid(),
-					ClassSectionId = request.CourseOfferingId, // Change CourseOfferingId to ClassSectionId
-					StudentId = request.StudentId,
-					Rating = request.Rating,
-					Comments = request.Comments,
-					EvaluationDate = DateTime.Now
-				};
+		public Task<CourseEvaluationPeriodResponse> GetCurrentEvaluationPeriod()
+		{
+			throw new NotImplementedException();
+		}
 
-				await _unitOfWork.GetRepository<CourseEvaluation>().InsertAsync(evaluation);
-				await _unitOfWork.CommitAsync();
+		public Task<List<ProfessorEvaluationSummaryResponse>> GetProfessorEvaluationSummaries(Guid semesterId)
+		{
+			throw new NotImplementedException();
+		}
 
+		public Task<bool> SendEvaluationResultsToProfessors(Guid semesterId)
+		{
+			throw new NotImplementedException();
+		}
 
-				return true;
-			}
-			catch (Exception ex)
-			{
+		public Task<byte[]> ExportCourseEvaluations(Guid semesterId)
+		{
+			throw new NotImplementedException();
+		}
 
-				_logger.LogError(ex, "Error creating course evaluation: {Message}", ex.Message);
-				throw;
-			}
+		public Task<byte[]> ExportProfessorEvaluations(Guid semesterId)
+		{
+			throw new NotImplementedException();
 		}
 	}
 }

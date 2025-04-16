@@ -11,11 +11,11 @@ namespace CDQTSystem_API.Controllers
 {
 	[ApiController]
 	[Route("api/v1/[controller]")]
-	public class StudentsController : ControllerBase
+	public class StudentsController : BaseController<StudentsController>
 	{
 		private readonly IStudentsService _studentsService;
 
-		public StudentsController(IStudentsService studentsService)
+		public StudentsController(ILogger<StudentsController> logger, IStudentsService studentsService) : base(logger)
 		{
 			_studentsService = studentsService;
 		}
@@ -33,10 +33,10 @@ namespace CDQTSystem_API.Controllers
 		}
 
 		[HttpGet]
-		[Authorize(Roles = "Student")]
-		public async Task<ActionResult<List<StudentInfoResponse>>> GetAllStudentsInformation()
+		[Authorize(Roles = "Admin,Staff")]
+		public async Task<ActionResult<List<StudentInfoResponse>>> GetAllStudentsInformation([FromQuery] int page, [FromQuery] int size, [FromQuery] string? search)
 		{
-			var studentsInfo = await _studentsService.GetAllStudentsInformation();
+			var studentsInfo = await _studentsService.GetAllStudentsInformation(search, page, size);
 			return Ok(studentsInfo);
 		}
 
@@ -74,6 +74,30 @@ namespace CDQTSystem_API.Controllers
 				return NotFound();
 
 			return Ok(transcript);
+		}
+
+		[HttpGet("detailed-transcript")]
+		[Authorize(Roles = "Admin,Academic,Student")]
+		public async Task<ActionResult<StudentDetailedTranscriptResponse>> GetDetailedTranscript()
+		{
+			try
+			{
+				var studentIdClaim = User.FindFirst("studentId");
+				if (studentIdClaim == null || !Guid.TryParse(studentIdClaim.Value, out Guid studentId))
+				{
+					return BadRequest("Invalid student token");
+				}
+				var result = await _studentsService.GetStudentDetailedTranscript(studentId);
+				if (result == null)
+					return NotFound("Student not found");
+
+				return Ok(result);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error retrieving detailed transcript");
+				return BadRequest("Failed to retrieve transcript data");
+			}
 		}
 
 		[HttpGet("{id}/term/{termId}/gpa")]

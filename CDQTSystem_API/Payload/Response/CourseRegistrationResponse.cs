@@ -4,7 +4,9 @@ namespace CDQTSystem_API.Payload.Response
 {
     public class CourseRegistrationResponse
     {
-        public Guid RegistrationId { get; set; }
+		public Guid Id { get; set; }
+		public Guid StudentId { get; set; }
+		public Guid RegistrationId { get; set; }
         public Guid CourseOfferingId { get; set; }
         public Guid CourseId { get; set; }
         public string CourseCode { get; set; }

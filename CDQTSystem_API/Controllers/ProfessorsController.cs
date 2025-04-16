@@ -7,22 +7,22 @@ namespace CDQTSystem_API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    public class ProfessorsController : ControllerBase
-    {
+    public class ProfessorsController : BaseController<ProfessorsController>
+	{
         private readonly IProfessorService _professorService;
 
-        public ProfessorsController(IProfessorService professorService)
-        {
+        public ProfessorsController(ILogger<ProfessorsController> logger, IProfessorService professorService) : base(logger)
+		{
             _professorService = professorService;
         }
 
         [HttpGet]
         [Authorize(Roles = "Staff,Student")]
-        public async Task<ActionResult<List<ProfessorResponse>>> GetAllProfessors()
+        public async Task<ActionResult<List<ProfessorResponse>>> GetAllProfessors([FromQuery] int page, [FromQuery] int size, [FromQuery] string? search)
         {
             try
             {
-                var professors = await _professorService.GetAllProfessors();
+                var professors = await _professorService.GetAllProfessors(page, size, search);
                 return Ok(professors);
             }
             catch (Exception ex)

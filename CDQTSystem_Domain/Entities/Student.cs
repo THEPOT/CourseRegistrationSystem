@@ -7,8 +7,6 @@ public partial class Student
 {
     public Guid Id { get; set; }
 
-    public string Mssv { get; set; } = null!;
-
     public Guid UserId { get; set; }
 
     public Guid MajorId { get; set; }
@@ -25,6 +23,8 @@ public partial class Student
 
     public virtual Major Major { get; set; } = null!;
 
+    public virtual ICollection<MidtermEvaluation> MidtermEvaluations { get; set; } = new List<MidtermEvaluation>();
+
     public virtual ICollection<ServiceRequest> ServiceRequests { get; set; } = new List<ServiceRequest>();
 
     public virtual ICollection<StudentFinancialAid> StudentFinancialAids { get; set; } = new List<StudentFinancialAid>();
@@ -32,8 +32,6 @@ public partial class Student
     public virtual ICollection<StudentScholarship> StudentScholarships { get; set; } = new List<StudentScholarship>();
 
     public virtual ICollection<StudentTuition> StudentTuitions { get; set; } = new List<StudentTuition>();
-
-    public virtual ICollection<Tuition> Tuitions { get; set; } = new List<Tuition>();
 
     public virtual User User { get; set; } = null!;
 }

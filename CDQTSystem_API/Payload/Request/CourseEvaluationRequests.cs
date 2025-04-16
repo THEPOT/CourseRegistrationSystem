@@ -4,7 +4,10 @@
 	{
 		public Guid CourseOfferingId { get; set; }
 		public Guid StudentId { get; set; }
-		public int Rating { get; set; }
-		public string Comments { get; set; }
+		public int TeachingQualityRating { get; set; }
+		public int CourseContentRating { get; set; }
+		public int AssessmentFairnessRating { get; set; }
+		public int OverallSatisfactionRating { get; set; }
+		public string? Feedback { get; set; }
 	}
 }

@@ -8,12 +8,12 @@ namespace CDQTSystem_API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    public class CourseOfferingsController : ControllerBase
-    {
+    public class CourseOfferingsController : BaseController<CourseOfferingsController>
+	{
         private readonly ICourseOfferingService _courseOfferingService;
 
-        public CourseOfferingsController(ICourseOfferingService courseOfferingService)
-        {
+        public CourseOfferingsController(ILogger<CourseOfferingsController> logger, ICourseOfferingService courseOfferingService) : base(logger)
+		{
             _courseOfferingService = courseOfferingService;
         }
 

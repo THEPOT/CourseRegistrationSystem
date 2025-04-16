@@ -12,11 +12,11 @@ namespace CDQTSystem_API.Controllers
 {
 	[ApiController]
 	[Route("api/v1/[controller]")]
-	public class CourseRegistrationsController : ControllerBase
+	public class CourseRegistrationsController : BaseController<CourseRegistrationsController>
 	{
 		private readonly ICourseRegistrationService _registrationService;
 
-		public CourseRegistrationsController(ICourseRegistrationService registrationService)
+		public CourseRegistrationsController(ILogger<CourseRegistrationsController> logger, ICourseRegistrationService registrationService) : base(logger)
 		{
 			_registrationService = registrationService;
 		}
@@ -27,8 +27,8 @@ namespace CDQTSystem_API.Controllers
 		{
 			try 
 			{
-				var studentId = Guid.Parse(User.FindFirst("UserId")?.Value);
-				var offerings = await _registrationService.GetAvailableCourseOfferingsForStudent(studentId);
+				var userId = Guid.Parse(User.FindFirst("UserId")?.Value);
+				var offerings = await _registrationService.GetAvailableCourseOfferingsForStudent(userId);
 				return Ok(offerings);
 			}
 			catch (BadHttpRequestException ex)

@@ -13,7 +13,11 @@ public partial class Professor
 
     public virtual ICollection<ClassSection> ClassSections { get; set; } = new List<ClassSection>();
 
+    public virtual ICollection<CourseEvaluation> CourseEvaluations { get; set; } = new List<CourseEvaluation>();
+
     public virtual Department Department { get; set; } = null!;
+
+    public virtual ICollection<MidtermEvaluation> MidtermEvaluations { get; set; } = new List<MidtermEvaluation>();
 
     public virtual User User { get; set; } = null!;
 }

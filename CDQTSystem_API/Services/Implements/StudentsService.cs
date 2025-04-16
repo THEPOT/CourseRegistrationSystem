@@ -5,6 +5,7 @@ using CDQTSystem_API.Payload.Response;
 using CDQTSystem_API.Services.Interface;
 using CDQTSystem_API.Utils;
 using CDQTSystem_Domain.Entities;
+using CDQTSystem_Domain.Paginate;
 using CDQTSystem_Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -30,6 +31,8 @@ namespace CDQTSystem_API.Services.Implements
 					include: q => q.Include(s => s.User)
 							  .Include(s => s.Major)
 				);
+			var user = await _unitOfWork.GetRepository<User>()
+				.SingleOrDefaultAsync(predicate: u => u.Id == student.UserId);
 
 			if (student == null)
 				return null;
@@ -37,7 +40,7 @@ namespace CDQTSystem_API.Services.Implements
 			return new StudentInfoResponse
 			{
 				Id = student.Id,
-				Mssv = student.Mssv,
+				Mssv = user.UserCode,
 				FullName = student.User.FullName,
 				Email = student.User.Email,
 				MajorName = student.Major.MajorName,
@@ -48,26 +51,31 @@ namespace CDQTSystem_API.Services.Implements
 			};
 		}
 
-		public async Task<List<StudentInfoResponse>> GetAllStudentsInformation()
+		public async Task<IPaginate<StudentInfoResponse>> GetAllStudentsInformation(string? search, int page = 1, int size= 10)
 		{
-			var students = await _unitOfWork.GetRepository<Student>()
-				.GetListAsync(
+			IPaginate<StudentInfoResponse> students = await _unitOfWork.GetRepository<Student>()
+				.GetPagingListAsync(
+					selector: s => new StudentInfoResponse
+					{
+						Id = s.Id,
+						Mssv = s.User.UserCode,
+						FullName = s.User.FullName,
+						Email = s.User.Email,
+						MajorName = s.Major.MajorName,
+						EnrollmentDate = s.EnrollmentDate,
+						AdmissionDate = s.AdmissionDate,
+						AdmissionStatus = s.AdmissionStatus,
+						ImageUrl = s.User.Image
+					},
+					predicate: s => string.IsNullOrEmpty(search) || s.User.FullName.Contains(search) ||
+									s.User.UserCode.Contains(search),
+					page: page,
+					size: size,
 					include: q => q.Include(s => s.User)
 							  .Include(s => s.Major)
 				);
+			return students;
 
-			return students.Select(student => new StudentInfoResponse
-			{
-				Id = student.Id,
-				Mssv = student.Mssv,
-				FullName = student.User.FullName,
-				Email = student.User.Email,
-				MajorName = student.Major.MajorName,
-				EnrollmentDate = student.EnrollmentDate,
-				AdmissionDate = student.AdmissionDate,
-				AdmissionStatus = student.AdmissionStatus,
-				ImageUrl = student.User.Image
-			}).ToList();
 		}
 
 		public async Task<List<ScholarshipInfo>> GetStudentScholarshipById(Guid studentId)
@@ -235,7 +243,7 @@ namespace CDQTSystem_API.Services.Implements
 
 			return new StudentTranscriptResponse
 			{
-				Mssv = student.Mssv,
+				Mssv = student.User.UserCode,
 				StudentName = student.User.FullName,
 				MajorName = student.Major.MajorName,
 				Terms = coursesByTerm,
@@ -245,6 +253,171 @@ namespace CDQTSystem_API.Services.Implements
 				TotalCreditsPassed = totalCreditsPassed
 			};
 		}
+
+		public async Task<StudentDetailedTranscriptResponse> GetStudentDetailedTranscript(Guid studentId)
+		{
+			var student = await _unitOfWork.GetRepository<Student>()
+				.SingleOrDefaultAsync(
+					predicate: s => s.Id == studentId,
+					include: q => q
+						.Include(s => s.User)
+						.Include(s => s.Major)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
+							.ThenInclude(co => co.Course)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
+							.ThenInclude(co => co.Semester)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.Grades)
+					.Include(s => s.CourseRegistrations)
+						.ThenInclude(r => r.ClassSection)
+						.Include(s => s.CourseRegistrations)
+							.ThenInclude(r => r.ClassSection)
+							.ThenInclude(cs => cs.MidtermEvaluations)
+				);
+
+			if (student == null)
+				return null;
+
+			// Group course registrations by semester
+			var semesterGroups = student.CourseRegistrations
+				.Where(r => r.Status != "Dropped")
+				.GroupBy(r => r.ClassSection.Semester.SemesterName)
+				.OrderBy(g => g.Key);
+
+			var response = new StudentDetailedTranscriptResponse
+			{
+				Mssv = student.User.UserCode,
+				StudentName = student.User.FullName,
+				MajorName = student.Major.MajorName,
+				TotalCredits = 0,
+				TotalCreditsPassed = 0,
+				CumulativeGPA = 0
+			};
+
+			decimal totalWeightedPoints = 0;
+			int totalCredits = 0;
+
+			foreach (var semesterGroup in semesterGroups)
+			{
+				var semesterName = semesterGroup.Key;
+				var semesterCourses = new List<CourseTranscriptDetail>();
+				decimal semesterWeightedPoints = 0;
+				int semesterCredits = 0;
+				int semesterCreditsPassed = 0;
+
+				foreach (var registration in semesterGroup)
+				{
+					// Get the final grade if available
+					var finalGrade = registration.Grades.OrderByDescending(g => g.QualityPoints).FirstOrDefault();
+
+					// Convert numerical grade to letter grade
+					string letterGrade = finalGrade != null ? ConvertToLetterGrade(finalGrade.QualityPoints) : "-";
+
+					// Determine if the course was passed
+					bool passed = finalGrade != null && finalGrade.QualityPoints >= 1.0m;
+					string result = finalGrade != null ? (passed ? "Đạt" : "Không đạt") : "Chưa có điểm";
+
+					var midtermEvaluation = registration.ClassSection.MidtermEvaluations
+					.FirstOrDefault(me => me.CourseId == registration.ClassSection.CourseId);
+
+					decimal? midtermScore = midtermEvaluation != null
+					? ParseNullableDecimal(midtermEvaluation.Recommendation)
+					: null;
+
+					decimal? finalScore = finalGrade != null ? ExtractFinalScore(finalGrade.GradeValue) : null;
+
+					var courseDetail = new CourseTranscriptDetail
+					{
+						CourseCode = registration.ClassSection.Course.CourseCode,
+						CourseName = registration.ClassSection.Course.CourseName,
+						Credits = registration.ClassSection.Course.Credits,
+						MidtermScore = midtermScore,
+						FinalScore = finalScore,
+						LetterGrade = letterGrade,
+						Result = result
+					};
+
+					semesterCourses.Add(courseDetail);
+
+					// Update semester statistics
+					int credits = registration.ClassSection.Course.Credits;
+					semesterCredits += credits;
+
+					if (finalGrade != null)
+					{
+						semesterWeightedPoints += finalGrade.QualityPoints * credits;
+						if (passed)
+							semesterCreditsPassed += credits;
+					}
+				}
+
+				// Calculate semester GPA
+				decimal semesterGPA = semesterCredits > 0
+					? Math.Round(semesterWeightedPoints / semesterCredits, 2)
+					: 0;
+
+				var semesterTranscript = new SemesterTranscript
+				{
+					SemesterName = semesterName,
+					SemesterGPA = semesterGPA,
+					SemesterCredits = semesterCredits,
+					Courses = semesterCourses
+				};
+
+				response.Semesters.Add(semesterTranscript);
+
+				// Update cumulative statistics
+				totalWeightedPoints += semesterWeightedPoints;
+				totalCredits += semesterCredits;
+				response.TotalCreditsPassed += semesterCreditsPassed;
+			}
+
+			// Calculate cumulative GPA
+			response.TotalCredits = totalCredits;
+			response.CumulativeGPA = totalCredits > 0
+				? Math.Round(totalWeightedPoints / totalCredits, 2)
+				: 0;
+
+			return response;
+		}
+
+		private string ConvertToLetterGrade(decimal qualityPoints)
+		{
+			if (qualityPoints >= 8.5m) return "A";
+			if (qualityPoints >= 8.0m) return "B+";
+			if (qualityPoints >= 7.0m) return "B";
+			if (qualityPoints >= 6.5m) return "C+";
+			if (qualityPoints >= 5.5m) return "C";
+			if (qualityPoints >= 5.0m) return "D+";
+			if (qualityPoints >= 4.0m) return "D";
+			return "F";
+		}
+
+		private decimal? ParseNullableDecimal(string value)
+		{
+			if (string.IsNullOrEmpty(value))
+				return null;
+
+			if (decimal.TryParse(value, out decimal result))
+				return result;
+
+			return null;
+		}
+
+		private decimal? ExtractFinalScore(string gradeValue)
+		{
+			if (string.IsNullOrEmpty(gradeValue))
+				return null;
+
+			var parts = gradeValue.Split(' ');
+			if (decimal.TryParse(parts[0], out decimal result))
+				return result;
+
+			return null;
+		}
+
 
 		public async Task<decimal> GetStudentTermGPA(Guid studentId, Guid termId)
 		{
@@ -336,7 +509,7 @@ namespace CDQTSystem_API.Services.Implements
 					results.Add(new StudentTranscriptSummary
 					{
 						StudentId = student.Id,
-						Mssv = student.Mssv,
+						Mssv = student.User.UserCode,
 						StudentName = student.User.FullName,
 						ProgramName = student.Major.MajorName,
 						GPA = Math.Round(gpa, 2),
@@ -373,7 +546,7 @@ namespace CDQTSystem_API.Services.Implements
 
 			var tuitions = studentTuitions.Select(st => new TuitionInfo
 			{
-				TuitionPolicyId = st.TuitionPolicyId,
+				TuitionPolicyId = st.TuitionPolicyId.HasValue ? st.TuitionPolicyId.Value : Guid.Empty,
 				PolicyName = st.TuitionPolicy.PolicyName,
 				Description = st.TuitionPolicy.Description,
 				Amount = st.TotalAmount,
@@ -383,10 +556,11 @@ namespace CDQTSystem_API.Services.Implements
 				AmountPaid = st.AmountPaid,
 				DiscountAmount = st.DiscountAmount ?? 0,
 				PaymentStatus = st.PaymentStatus,
-				PaymentDueDate = st.PaymentDueDate,
+				PaymentDueDate = DateOnly.FromDateTime(st.DueDate),
 				IsPaid = st.PaymentStatus == "Paid",
 				PaymentDate = st.PaymentDate.HasValue ? DateOnly.FromDateTime(st.PaymentDate.Value) : null
 			}).ToList();
+
 
 			var totalAmount = studentTuitions.Sum(t => t.TotalAmount);
 			var paidAmount = studentTuitions.Sum(t => t.AmountPaid);
@@ -394,7 +568,7 @@ namespace CDQTSystem_API.Services.Implements
 			return new StudentTuitionResponse
 			{
 				StudentId = student.Id,
-				Mssv = student.Mssv,
+				Mssv = student.User.UserCode,
 				StudentName = student.User.FullName,
 				Tuitions = tuitions,
 				TotalAmount = totalAmount,
@@ -416,7 +590,7 @@ namespace CDQTSystem_API.Services.Implements
 			return studentScholarships
 				.Select(ss => new StudentScholarshipResponse
 				{
-					Mssv = ss.Student.Mssv,
+					Mssv = ss.Student.User.UserCode,
 					FullName = ss.Student.User.FullName,
 					ScholarshipName = ss.Scholarship.ScholarshipName,
 					Amount = ss.Scholarship.Amount,
@@ -438,7 +612,7 @@ namespace CDQTSystem_API.Services.Implements
 
 			return students.Select(student => new StudentProgramCourseResponse
 			{
-				Mssv = student.Mssv,
+				Mssv = student.User.UserCode,
 				StudentName = student.User.FullName,
 				ProgramName = student.Major.MajorName,
 				Courses = student.Major.Courses.Select(c => new CourseInfo
@@ -515,7 +689,7 @@ namespace CDQTSystem_API.Services.Implements
 
 				return new StudentTranscriptResponse
 				{
-					Mssv = student.Mssv,
+					Mssv = student.User.UserCode,
 					StudentName = student.User.FullName,
 					MajorName = student.Major.MajorName,
 					Terms = coursesByTerm,
@@ -538,6 +712,8 @@ namespace CDQTSystem_API.Services.Implements
 						.Include(st => st.Semester)
 						.Include(st => st.TuitionPolicy)
 				);
+			var user = await _unitOfWork.GetRepository<User>()
+				.SingleOrDefaultAsync(predicate: u => u.Id == studentTuitions.First().Student.UserId);
 
 			// Group by student to create one response per student
 			var groupedTuitions = studentTuitions
@@ -546,9 +722,9 @@ namespace CDQTSystem_API.Services.Implements
 				{
 					var student = group.First().Student;
 
-					var tuitions = group.Select(st => new TuitionInfo
+					var tuitions = studentTuitions.Select(st => new TuitionInfo
 					{
-						TuitionPolicyId = st.TuitionPolicyId,
+						TuitionPolicyId = st.TuitionPolicyId.HasValue ? st.TuitionPolicyId.Value : Guid.Empty,
 						PolicyName = st.TuitionPolicy.PolicyName,
 						Description = st.TuitionPolicy.Description,
 						Amount = st.TotalAmount,
@@ -558,10 +734,11 @@ namespace CDQTSystem_API.Services.Implements
 						AmountPaid = st.AmountPaid,
 						DiscountAmount = st.DiscountAmount ?? 0,
 						PaymentStatus = st.PaymentStatus,
-						PaymentDueDate = st.PaymentDueDate,
+						PaymentDueDate = DateOnly.FromDateTime(st.DueDate),
 						IsPaid = st.PaymentStatus == "Paid",
 						PaymentDate = st.PaymentDate.HasValue ? DateOnly.FromDateTime(st.PaymentDate.Value) : null
 					}).ToList();
+
 
 					var totalAmount = tuitions.Sum(t => t.Amount);
 					var paidAmount = tuitions.Sum(t => t.AmountPaid);
@@ -569,7 +746,7 @@ namespace CDQTSystem_API.Services.Implements
 					return new StudentTuitionResponse
 					{
 						StudentId = student.Id,
-						Mssv = student.Mssv,
+						Mssv = user.UserCode,
 						StudentName = student.User.FullName,
 						Tuitions = tuitions,
 						TotalAmount = totalAmount,
@@ -607,6 +784,7 @@ namespace CDQTSystem_API.Services.Implements
 				var newUser = new User
 				{
 					Id = Guid.NewGuid(),
+					UserCode = UserCodeGeneration.GenerateStudentId(),
 					Email = request.Email,
 					Password = PasswordUtil.HashPassword(request.Password),
 					FullName = request.FullName,
@@ -621,7 +799,6 @@ namespace CDQTSystem_API.Services.Implements
 					Id = Guid.NewGuid(),
 					UserId = newUser.Id,
 					MajorId = request.MajorId,
-					Mssv = MSSVGeneration.GenerateStudentId(),
 					EnrollmentDate = DateOnly.FromDateTime(DateTime.Now),
 					AdmissionDate = request.AdmissionDate,
 					AdmissionStatus = request.AdmissionStatus
@@ -655,7 +832,7 @@ namespace CDQTSystem_API.Services.Implements
 				return new StudentInfoResponse
 				{
 					Id = newStudent.Id,
-					Mssv = newStudent.Mssv,
+					Mssv = newUser.UserCode,
 					FullName = newUser.FullName,
 					Email = newUser.Email,
 					MajorName = program.MajorName,
@@ -686,6 +863,7 @@ namespace CDQTSystem_API.Services.Implements
 
 				if (student == null)
 					return null;
+				var user = await _unitOfWork.GetRepository<User>().SingleOrDefaultAsync(predicate: u => u.Id == student.UserId);
 
 				// Update user info
 				if (!string.IsNullOrEmpty(request.Email) && student.User.Email != request.Email)
@@ -693,6 +871,9 @@ namespace CDQTSystem_API.Services.Implements
 					// Check if email already exists
 					var existingUser = await _unitOfWork.GetRepository<User>()
 						.SingleOrDefaultAsync(predicate: u => u.Email == request.Email && u.Id != student.UserId);
+
+					if(existingUser.UserCode == user.UserCode)
+						throw new BadHttpRequestException("Student code exists");
 
 					if (existingUser != null)
 						throw new BadHttpRequestException("Email already exists");
@@ -707,16 +888,16 @@ namespace CDQTSystem_API.Services.Implements
 					student.User.Image = request.ImageUrl;
 
 				// Update student info
-				if (!string.IsNullOrEmpty(request.Mssv) && student.Mssv != request.Mssv)
+				if (!string.IsNullOrEmpty(request.Mssv) && user.UserCode != request.Mssv)
 				{
 					// Check if MSSV already exists
 					var existingStudent = await _unitOfWork.GetRepository<Student>()
-						.SingleOrDefaultAsync(predicate: s => s.Mssv == request.Mssv && s.Id != studentId);
+						.SingleOrDefaultAsync(predicate: s => s.User.UserCode == request.Mssv && s.Id != studentId);
 
 					if (existingStudent != null)
 						throw new BadHttpRequestException("Student ID already exists");
 
-					student.Mssv = request.Mssv;
+					student.User.UserCode = request.Mssv;
 				}
 
 				if (request.EnrollmentDate.HasValue)
@@ -745,7 +926,7 @@ namespace CDQTSystem_API.Services.Implements
 				return new StudentInfoResponse
 				{
 					Id = student.Id,
-					Mssv = student.Mssv,
+					Mssv = student.User.UserCode,
 					FullName = student.User.FullName,
 					Email = student.User.Email,
 					MajorName = student.Major.MajorName,
@@ -865,7 +1046,7 @@ namespace CDQTSystem_API.Services.Implements
 			return new StudentInfoResponse
 			{
 				Id = student.Id,
-				Mssv = student.Mssv,
+				Mssv = student.User.UserCode,
 				FullName = student.User.FullName,
 				Email = student.User.Email,
 				MajorName = program.MajorName,
@@ -898,7 +1079,7 @@ namespace CDQTSystem_API.Services.Implements
 					throw new BadHttpRequestException("Term not found");
 
 				// Calculate payment due date (30 days from now by default)
-				var paymentDueDate = request.PaymentDueDate ?? DateOnly.FromDateTime(DateTime.Now.AddDays(30));
+				
 
 				var newTuition = new StudentTuition
 				{
@@ -909,7 +1090,7 @@ namespace CDQTSystem_API.Services.Implements
 					TotalAmount = tuitionPolicy.Amount,
 					AmountPaid = 0,
 					PaymentStatus = "Unpaid",
-					PaymentDueDate = paymentDueDate,
+					DueDate = request.PaymentDueDate.HasValue ? request.PaymentDueDate.Value.ToDateTime(TimeOnly.MinValue) : DateTime.MinValue,
 					PaymentDate = null
 				};
 
@@ -962,10 +1143,9 @@ namespace CDQTSystem_API.Services.Implements
 					studentTuition.SemesterId = term.Id;
 				}
 
-				// Update payment due date if provided
 				if (request.PaymentDueDate.HasValue)
 				{
-					studentTuition.PaymentDueDate = request.PaymentDueDate.Value;
+					studentTuition.DueDate = request.PaymentDueDate.Value.ToDateTime(TimeOnly.MinValue);
 				}
 
 				// Handle payment status
@@ -1353,7 +1533,7 @@ namespace CDQTSystem_API.Services.Implements
 			return students.Select(student => new StudentInfoResponse
 			{
 				Id = student.Id,
-				Mssv = student.Mssv,
+				Mssv = student.User.UserCode,
 				FullName = student.User.FullName,
 				Email = student.User.Email,
 				MajorName = student.Major.MajorName, // Change from Program.ProgramName to Major.MajorName
@@ -1376,7 +1556,7 @@ namespace CDQTSystem_API.Services.Implements
 			return students.Select(student => new StudentInfoResponse
 			{
 				Id = student.Id,
-				Mssv = student.Mssv,
+				Mssv = student.User.UserCode,
 				FullName = student.User.FullName,
 				Email = student.User.Email,
 				MajorName = student.Major.MajorName, // Change from Program.ProgramName to Major.MajorName
@@ -1403,7 +1583,7 @@ namespace CDQTSystem_API.Services.Implements
 			return studentScholarships.Select(ss => new StudentInfoResponse
 			{
 				Id = ss.Student.Id,
-				Mssv = ss.Student.Mssv,
+				Mssv = ss.Student.User.UserCode,
 				FullName = ss.Student.User.FullName,
 				Email = ss.Student.User.Email,
 				MajorName = ss.Student.Major.MajorName, // Change from Program.ProgramName to Major.MajorName
@@ -1463,7 +1643,7 @@ namespace CDQTSystem_API.Services.Implements
 			return new StudentDetailedInfoResponse
 			{
 				// Tab 1: Thông tin cá nhân
-				Mssv = student.Mssv,
+				Mssv = student.User.UserCode,
 				FullName = student.User.FullName,
 				Email = student.User.Email,
 				PhoneNumber = student.User.PhoneNumber,
@@ -1513,7 +1693,7 @@ namespace CDQTSystem_API.Services.Implements
 				{
 					TuitionName = currentTuition.TuitionPolicy.PolicyName,
 					Amount = currentTuition.TotalAmount,
-					DueDate = currentTuition.PaymentDueDate,
+					DueDate = DateOnly.FromDateTime(currentTuition.DueDate),
 					Status = currentTuition.PaymentStatus
 				} : null,
 				TuitionHistory = student.StudentTuitions
@@ -1521,9 +1701,10 @@ namespace CDQTSystem_API.Services.Implements
 					{
 						TuitionName = st.TuitionPolicy.PolicyName,
 						Amount = st.TotalAmount,
-						DueDate = st.PaymentDueDate,
+						DueDate = DateOnly.FromDateTime(st.DueDate),
 						Status = st.PaymentStatus
 					}).ToList()
+
 			};
 		}
 

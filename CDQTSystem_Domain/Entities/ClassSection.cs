@@ -15,7 +15,7 @@ public partial class ClassSection
 
     public Guid? ClassroomId { get; set; }
 
-    public int Capacity { get; set; }
+    public int MaxCapacity { get; set; }
 
     public bool? IsOnline { get; set; }
 
@@ -25,9 +25,9 @@ public partial class ClassSection
 
     public virtual Course Course { get; set; } = null!;
 
-    public virtual ICollection<CourseEvaluation> CourseEvaluations { get; set; } = new List<CourseEvaluation>();
-
     public virtual ICollection<CourseRegistration> CourseRegistrations { get; set; } = new List<CourseRegistration>();
+
+    public virtual ICollection<MidtermEvaluation> MidtermEvaluations { get; set; } = new List<MidtermEvaluation>();
 
     public virtual Professor? Professor { get; set; }
 

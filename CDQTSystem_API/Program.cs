@@ -1,6 +1,3 @@
-
-
-
 using Microsoft.EntityFrameworkCore;
 using CDQTSystem_API.Constants;
 using CDQTSystem_API.Authorization;
@@ -50,31 +47,7 @@ namespace CourseRegistrationSystem
 			});
 
 			// MassTransit Configuration
-			builder.Services.AddMassTransit(x =>
-			{
-				x.AddConsumer<CourseRegistrationConsumer>();
-				
-				x.UsingRabbitMq((context, cfg) =>
-				{
-					cfg.Host("localhost", "/", h =>
-					{
-						h.Username("guest");
-						h.Password("guest");
-					});
-
-					cfg.ConfigureEndpoints(context);
-					
-					cfg.UseMessageRetry(r =>
-					{
-						r.Intervals(100, 500, 1000);
-					});
-
-					cfg.UseTimeout(t =>
-					{
-						t.Timeout = TimeSpan.FromSeconds(60);
-					});
-				});
-			});
+			builder.Services.AddMassTransit();
 
 			// Existing service registrations...
 			builder.Services.AddSingleton<IAuthorizationHandler, HeaderRequirementHandler>();
@@ -82,19 +55,19 @@ namespace CourseRegistrationSystem
 			builder.Services.AddServices(builder.Configuration);
 			builder.Services.AddJwtValidation();
 			builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-			builder.Services.AddAutoMapperConfig(builder.Configuration);
 			builder.Services.AddConfigSwagger();
 			builder.Services.AddEndpointsApiExplorer();
 			builder.Services.AddSwaggerGen();
 			builder.Services.AddHttpClient();
-			builder.Services.AddControllers();
-
+			builder.Services.AddControllers().AddJsonOptions(options =>
+			{
+				options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+			});
 			var app = builder.Build();
 
 			app.UseSwagger();
 			app.UseSwaggerUI();
 			app.UseMiddleware<ExceptionHandlingMiddleware>();
-
 			app.UseCors(CorsConstant.PolicyName);
 			app.UseHttpsRedirection();
 			app.UseAuthentication();
