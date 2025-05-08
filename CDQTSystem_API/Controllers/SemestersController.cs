@@ -45,7 +45,7 @@ namespace CDQTSystem_API.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Staff")]
+        [Authorize(Roles = "Staff,Admin")]
         public async Task<ActionResult<List<SemesterResponse>>> GetAllSemesters([FromQuery] int page , [FromQuery] int size, [FromQuery] string? search)
         {
             var semesters = await _semesterService.GetAllSemesters(page, size, search);

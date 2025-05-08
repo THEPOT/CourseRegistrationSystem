@@ -1,5 +1,6 @@
 ﻿using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
+using CDQTSystem_Domain.Paginate;
 
 namespace CDQTSystem_API.Services.Interface
 {
@@ -14,6 +15,7 @@ namespace CDQTSystem_API.Services.Interface
 
 		// Admin actions
 		Task<CourseEvaluationPeriodResponse> CreateOrUpdateEvaluationPeriod(CourseEvaluationPeriodRequest request);
+		Task<IPaginate<CourseEvaluationPeriodResponse>> GetCourseOfferingsForEvaluation(Guid semesterId, int page, int size);
 		Task<CourseEvaluationPeriodResponse> GetCurrentEvaluationPeriod();
 		Task<List<CourseEvaluationSummaryResponse>> GetCourseEvaluationSummaries(Guid semesterId);
 		Task<List<ProfessorEvaluationSummaryResponse>> GetProfessorEvaluationSummaries(Guid semesterId);

@@ -338,6 +338,60 @@ namespace CDQTSystem_API.Services.Implements
                 throw;
             }
         }
+
+        public async Task<List<CourseOfferingResponse>> GetProfessorOfferingsBySemester(Guid professorId, Guid semesterId)
+        {
+            var offerings = await _unitOfWork.GetRepository<ClassSection>()
+                .GetListAsync(
+                    predicate: cs => cs.SemesterId == semesterId && cs.ProfessorId == professorId,
+                    include: q => q
+                        .Include(cs => cs.Course)
+                        .Include(cs => cs.Professor).ThenInclude(p => p.User)
+                        .Include(cs => cs.ClassSectionSchedules)
+                        .Include(cs => cs.Semester)
+                );
+            return offerings.Select(cs => new CourseOfferingResponse
+            {
+                CourseOfferingId = cs.Id,
+                CourseId = cs.CourseId,
+                CourseCode = cs.Course.CourseCode,
+                CourseName = cs.Course.CourseName,
+                Credits = cs.Course.Credits,
+                ProfessorId = cs.ProfessorId,
+                ProfessorName = cs.Professor?.User.FullName,
+                Classroom = cs.Classroom?.RoomName ?? "TBD",
+                Schedule = string.Join(", ", cs.ClassSectionSchedules.Select(s => $"{s.DayOfWeek} {s.StartTime:hh\\:mm}-{s.EndTime:hh\\:mm}")),
+                Capacity = cs.MaxCapacity,
+                RegisteredCount = cs.CourseRegistrations?.Count ?? 0,
+                AvailableSlots = cs.MaxCapacity - (cs.CourseRegistrations?.Count ?? 0),
+                SemesterName = cs.Semester.SemesterName,
+                StartDate = cs.Semester.StartDate,
+                EndDate = cs.Semester.EndDate
+            }).ToList();
+        }
+
+        public async Task<List<StudentInfoResponse>> GetStudentsInOffering(Guid offeringId)
+        {
+            var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
+                .GetListAsync(
+                    predicate: r => r.ClassSectionId == offeringId && r.Status != "Dropped",
+                    include: q => q
+                        .Include(r => r.Student).ThenInclude(s => s.User)
+                        .Include(r => r.Student).ThenInclude(s => s.Major)
+                );
+            return registrations
+                .OrderBy(r => r.Student.User.FullName)
+                .Select(r => new StudentInfoResponse
+                {
+                    Id = r.Student.Id,
+                    Mssv = r.Student.User.UserCode,
+                    FullName = r.Student.User.FullName,
+                    Email = r.Student.User.Email,
+                    MajorName = r.Student.Major.MajorName,
+                    EnrollmentDate = r.Student.EnrollmentDate,
+                    ImageUrl = r.Student.User.Image
+                }).ToList();
+        }
     }
 }
 

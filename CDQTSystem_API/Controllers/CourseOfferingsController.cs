@@ -1,6 +1,7 @@
 using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
 using CDQTSystem_API.Services.Interface;
+using CDQTSystem_Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,11 +12,13 @@ namespace CDQTSystem_API.Controllers
     public class CourseOfferingsController : BaseController<CourseOfferingsController>
 	{
         private readonly ICourseOfferingService _courseOfferingService;
+        private readonly ICourseRegistrationService _courseRegistrationService;
 
-        public CourseOfferingsController(ILogger<CourseOfferingsController> logger, ICourseOfferingService courseOfferingService) : base(logger)
+		public CourseOfferingsController(ILogger<CourseOfferingsController> logger, ICourseOfferingService courseOfferingService, ICourseRegistrationService courseRegistrationService ) : base(logger)
 		{
             _courseOfferingService = courseOfferingService;
-        }
+			_courseRegistrationService = courseRegistrationService;
+		}
 
         [HttpPost]
         [Authorize(Roles = "Staff")]
@@ -102,6 +105,23 @@ namespace CDQTSystem_API.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [HttpGet("professor/{semesterId}")]
+        [Authorize(Roles = "Professor")]
+        public async Task<ActionResult<List<CourseOfferingResponse>>> GetProfessorOfferingsBySemester(Guid semesterId)
+        {
+			var userId = Guid.Parse(User.FindFirst("UserId")?.Value);
+			var offerings = await _courseRegistrationService.GetProfessorOfferingsBySemester(userId, semesterId);
+            return Ok(offerings);
+        }
+
+        [HttpGet("{offeringId}/students")]
+        [Authorize(Roles = "Professor")]
+        public async Task<ActionResult<List<StudentInfoResponse>>> GetStudentsInOffering(Guid offeringId)
+        {
+            var students = await _courseRegistrationService.GetStudentsInOffering(offeringId);
+            return Ok(students);
         }
     }
 }

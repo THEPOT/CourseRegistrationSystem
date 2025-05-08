@@ -17,7 +17,7 @@ namespace CDQTSystem_API.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Staff,Student")]
+        [Authorize(Roles = "Staff,Student,Admin")]
         public async Task<ActionResult<List<ProfessorResponse>>> GetAllProfessors([FromQuery] int page, [FromQuery] int size, [FromQuery] string? search)
         {
             try
