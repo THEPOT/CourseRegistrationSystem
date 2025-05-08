@@ -63,6 +63,6 @@
 		public DateTime StartDate { get; set; }
 		public DateTime EndDate { get; set; }
 		public bool IsActive { get; set; }
-		public bool IsCurrentlyOpen => DateTime.UtcNow >= StartDate && DateTime.UtcNow <= EndDate && IsActive;
+		public bool IsCurrentlyOpen { get; set; }
 	}
 }

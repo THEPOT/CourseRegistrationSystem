@@ -20,6 +20,14 @@ namespace CDQTSystem_API.Controllers
 			_courseEvaluationService = courseEvaluationService;
 		}
 
+		[HttpGet]
+		[Authorize(Roles = "Staff,Admin")]
+		public async Task<IActionResult> GetCourseOfferingsForEvaluation([FromQuery] Guid semesterId, [FromQuery] int page = 1, [FromQuery] int size = 10)
+		{
+			var offerings = await _courseEvaluationService.GetCourseOfferingsForEvaluation(semesterId, page, size);
+			return Ok(offerings);
+		}
+
 		[HttpPost]
 		[Authorize(Roles = "Student")]
 		public async Task<IActionResult> SubmitEvaluation([FromBody] SubmitCourseEvaluationRequest request)
@@ -47,7 +55,7 @@ namespace CDQTSystem_API.Controllers
 		}
 
 		[HttpPost("period")]
-		[Authorize(Roles = "Staff")]
+		[Authorize(Roles = "Staff,Admin")]
 		public async Task<IActionResult> SetEvaluationPeriod([FromBody] CourseEvaluationPeriodRequest request)
 		{
 			var result = await _courseEvaluationService.CreateOrUpdateEvaluationPeriod(request);
@@ -55,7 +63,7 @@ namespace CDQTSystem_API.Controllers
 		}
 
 		[HttpGet("period/current")]
-		[Authorize]
+		[Authorize(Roles = "Admin")]
 		public async Task<IActionResult> GetCurrentPeriod()
 		{
 			var period = await _courseEvaluationService.GetCurrentEvaluationPeriod();
@@ -63,7 +71,7 @@ namespace CDQTSystem_API.Controllers
 		}
 
 		[HttpGet("summary/courses/{semesterId:guid}")]
-		[Authorize(Roles = "Staff,Professor")]
+		[Authorize(Roles = "Staff,Professor,Admin")]
 		public async Task<IActionResult> GetCourseSummaries(Guid semesterId)
 		{
 			var summaries = await _courseEvaluationService.GetCourseEvaluationSummaries(semesterId);
