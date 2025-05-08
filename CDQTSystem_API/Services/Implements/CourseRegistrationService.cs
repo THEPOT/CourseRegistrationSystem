@@ -134,7 +134,7 @@ namespace CDQTSystem_API.Services.Implements
 					RequestId = Guid.NewGuid(),
 					StudentId = studentId,
 					CourseOfferingId = request.CourseOfferingId,
-					RequestTimestamp = DateTime.UtcNow
+					RequestTimestamp = DateTime.UtcNow.AddHours(7)
 				};
 
 				_logger.LogInformation(
@@ -195,9 +195,9 @@ namespace CDQTSystem_API.Services.Implements
 		{
 			var currentPeriod = await _unitOfWork.GetRepository<RegistrationPeriod>()
 				.SingleOrDefaultAsync(
-					predicate: rp => rp.Status == "Open" &&
-									rp.StartDate <= DateTime.UtcNow &&
-									rp.EndDate >= DateTime.UtcNow
+					predicate: rp => rp.Status == "OPEN" &&
+									rp.StartDate <= DateTime.UtcNow.AddHours(7) &&
+									rp.EndDate >= DateTime.UtcNow.AddHours(7)
 				);
 
 			if (currentPeriod == null)
@@ -370,13 +370,13 @@ namespace CDQTSystem_API.Services.Implements
 			// Get current registration period
 			var currentPeriod = await _unitOfWork.GetRepository<RegistrationPeriod>()
 				.SingleOrDefaultAsync(
-					predicate: rp => rp.Status == "Open" &&
-									rp.StartDate <= DateTime.UtcNow &&
-									rp.EndDate >= DateTime.UtcNow
+						predicate: rp => rp.Status == "OPEN" && 
+									rp.StartDate <= DateTime.UtcNow.AddHours(7) &&
+									rp.EndDate >= DateTime.UtcNow.AddHours(7)
 				);
 
 			if (currentPeriod == null)
-				throw new BadHttpRequestException("No active registration period found");
+				throw new BadHttpRequestException("No active registration period found service");
 
 			// Get course offerings with all related data in a single query
 			var offerings = await _unitOfWork.GetRepository<ClassSection>()
@@ -428,6 +428,19 @@ namespace CDQTSystem_API.Services.Implements
 				};
 			}
 
+			// Lấy danh sách các lớp mà sinh viên đã đăng ký (trừ Dropped)
+			var student = await _unitOfWork.GetRepository<Student>()
+				.SingleOrDefaultAsync(predicate: s => s.UserId == userId);
+			var registeredSections = await _unitOfWork.GetRepository<CourseRegistration>()
+				.GetListAsync(
+					predicate: r => r.StudentId == student.Id && r.Status != "Dropped",
+					include: q => q.Include(r => r.ClassSection)
+				);
+			var registeredSectionIds = registeredSections.Select(r => r.ClassSection.Id).ToHashSet();
+
+			// Create a filtered list instead of modifying the read-only Items property
+			var filteredOfferings = offerings.Items.Where(o => !registeredSectionIds.Contains(o.CourseOfferingId)).ToList();
+
 			var completedCourses = await _unitOfWork.GetRepository<CourseRegistration>()
 				.GetListAsync(
 					predicate: r => r.StudentId == userId &&
@@ -442,8 +455,8 @@ namespace CDQTSystem_API.Services.Implements
 				.Distinct()
 				.ToHashSet();
 
-			// Extract course codes from the offerings.Items
-			var courseCodes = offerings.Items.Select(o => o.CourseCode).ToList();
+			// Extract course codes from the filteredOfferings list
+			var courseCodes = filteredOfferings.Select(o => o.CourseCode).ToList();
 
 			var coursesWithPrerequisites = await _unitOfWork.GetRepository<Course>()
 				.GetListAsync(
@@ -459,8 +472,8 @@ namespace CDQTSystem_API.Services.Implements
 				)
 			);
 
-			// Update each item in the offerings.Items collection
-			foreach (var offering in offerings.Items)
+			// Update each item in the filteredOfferings collection
+			foreach (var offering in filteredOfferings)
 			{
 				if (coursePrerequisitesMap.TryGetValue(offering.CourseCode, out var prereqInfo))
 				{
@@ -469,7 +482,15 @@ namespace CDQTSystem_API.Services.Implements
 				}
 			}
 
-			return offerings;
+			// Return a new Paginate object with the filtered list
+			return new Paginate<AvailableCourseResponse>
+			{
+				Items = filteredOfferings,
+				Page = offerings.Page,
+				Size = offerings.Size,
+				Total = filteredOfferings.Count,
+				TotalPages = (int)Math.Ceiling((double)filteredOfferings.Count / offerings.Size)
+			};
 		}
 
 

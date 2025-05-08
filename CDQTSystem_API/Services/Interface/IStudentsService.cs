@@ -1,6 +1,8 @@
 ﻿using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
 using CDQTSystem_Domain.Paginate;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace CDQTSystem_API.Services.Interface
 {
@@ -35,6 +37,6 @@ namespace CDQTSystem_API.Services.Interface
 		Task<List<StudentInfoResponse>> GetStudentsByProgram(Guid programId);
 		Task<List<StudentInfoResponse>> GetStudentsByScholarship(string scholarshipName);
 		Task<StudentDetailedInfoResponse> GetStudentDetailedInformation(Guid studentId);
-
+		Task<List<StudentScheduleResponse>> GetStudentSchedule(Guid studentId, int? week = null, int? year = null);
 	}
 }

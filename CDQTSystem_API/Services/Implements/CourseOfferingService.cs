@@ -46,6 +46,31 @@ namespace CDQTSystem_API.Services.Implements
                         }).ToList()
                     };
 
+                    // Sinh các buổi học thực tế (ClassSession)
+                    var semesterStart = semester.StartDate;
+                    var semesterEnd = semester.EndDate;
+                    var sessions = new List<ClassSession>();
+                    foreach (var schedule in classSection.ClassSectionSchedules)
+                    {
+                        // Lặp qua từng ngày trong học kỳ
+                        for (var date = semesterStart; date <= semesterEnd; date = date.AddDays(1))
+                        {
+                            if (date.DayOfWeek.ToString() == schedule.DayOfWeek)
+                            {
+                                sessions.Add(new ClassSession
+                                {
+                                    Id = Guid.NewGuid(),
+                                    ClassSectionId = classSection.Id,
+                                    Date = date,
+                                    DayOfWeek = schedule.DayOfWeek,
+                                    StartTime = schedule.StartTime,
+                                    EndTime = schedule.EndTime,
+                                    Status = "Normal"
+                                });
+                            }
+                        }
+                    }
+                    classSection.ClassSessions = sessions;
                     offerings.Add(classSection);
                 }
 

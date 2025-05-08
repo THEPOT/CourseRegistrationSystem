@@ -192,7 +192,7 @@ namespace CDQTSystem_API.Services.Implements
 						throw new BadHttpRequestException("Another registration period is already open for this semester");
 
 					// Validate dates
-					if (DateTime.UtcNow > registrationPeriod.EndDate)
+					if (DateTime.UtcNow.AddHours(7) > registrationPeriod.EndDate)
 						throw new BadHttpRequestException("Cannot open a registration period that has already ended");
 				}
 

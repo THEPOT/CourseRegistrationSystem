@@ -397,5 +397,17 @@ namespace CDQTSystem_API.Controllers
 			return Ok(detailedInfo);
 		}
 
+		[HttpGet("schedule")]
+		[Authorize(Roles = "Student,Staff,Professor")]
+		public async Task<ActionResult<List<StudentScheduleResponse>>> GetStudentSchedule( [FromQuery] int? year, [FromQuery] int? week)
+		{
+			var studentIdClaim = User.FindFirst("studentId");
+			if (studentIdClaim == null || !Guid.TryParse(studentIdClaim.Value, out Guid studentId))
+			{
+				return BadRequest("Invalid student token");
+			}
+			var schedule = await _studentsService.GetStudentSchedule(studentId, year, week);
+			return Ok(schedule);
+		}
 	}
 }

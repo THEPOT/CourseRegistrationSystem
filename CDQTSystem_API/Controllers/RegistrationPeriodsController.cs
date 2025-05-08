@@ -40,7 +40,7 @@ namespace CDQTSystem_API.Controllers
                 return BadRequest(new 
                 { 
                     error = ex.Message,
-                    timestamp = DateTime.UtcNow
+                    timestamp = DateTime.UtcNow.AddHours(7)
                 });
             }
         }

@@ -118,14 +118,14 @@ namespace CDQTSystem_API.Consumers
                     // Get current registration period
                     var currentPeriod = await _unitOfWork.GetRepository<RegistrationPeriod>()
                         .SingleOrDefaultAsync(
-                            predicate: rp => rp.Status == "Open" &&
-                                           rp.StartDate <= DateTime.UtcNow &&
-                                           rp.EndDate >= DateTime.UtcNow
+                            predicate: rp => rp.Status == "OPEN" &&
+                                           rp.StartDate <= DateTime.UtcNow.AddHours(7) &&
+                                           rp.EndDate >= DateTime.UtcNow.AddHours(7)
                         );
 
                     if (currentPeriod == null)
                     {
-                        throw new BadHttpRequestException("No active registration period found");
+                        throw new BadHttpRequestException("No active registration period found consumer");
                     }
 
                     var registration = new CourseRegistration
@@ -133,7 +133,7 @@ namespace CDQTSystem_API.Consumers
                         Id = Guid.NewGuid(),
                         StudentId = message.StudentId,
                         ClassSectionId = message.CourseOfferingId,
-                        RegistrationDate = DateTime.UtcNow,
+                        RegistrationDate = DateTime.UtcNow.AddHours(7),
                         Status = "Registered",
                         TuitionStatus = "Pending",
                         RegistrationPeriodId = currentPeriod.Id

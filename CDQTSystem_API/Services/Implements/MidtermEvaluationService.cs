@@ -8,6 +8,7 @@ using CDQTSystem_Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using CDQTSystem_Domain.Paginate;
 namespace CDQTSystem_API.Services.Implements
 {
 	public class MidtermEvaluationService : BaseService<MidtermEvaluationService>, IMidtermEvaluationService
@@ -88,7 +89,7 @@ namespace CDQTSystem_API.Services.Implements
 				SemesterId = classSection.SemesterId,
 				Comments = request.Comments,
 				Recommendation = request.Recommendation,
-				EvaluationDate = DateTime.UtcNow
+				EvaluationDate = DateTime.UtcNow.AddHours(7)
 			};
 
 			await _unitOfWork.GetRepository<MidtermEvaluation>().InsertAsync(evaluation);
@@ -194,6 +195,27 @@ namespace CDQTSystem_API.Services.Implements
 		public Task<MidtermEvaluationResponse> GetMidtermEvaluation(Guid evaluationId)
 		{
 			throw new NotImplementedException();
+		}
+		public async Task<IPaginate<MidtermEvaluationResponse>> GetMidtermEvaluations(int page = 1, int size = 10)
+		{
+			var evaluations = await _unitOfWork.GetRepository<MidtermEvaluation>()
+				.GetPagingListAsync(
+				selector: e => new MidtermEvaluationResponse
+				{
+					Id = e.Id,
+					StudentId = e.StudentId,
+					ProfessorId = e.ProfessorId,
+					CourseId = e.CourseId,
+					ClassSectionId = e.ClassSectionId,
+					SemesterId = e.SemesterId,
+					Comments = e.Comments,
+					Recommendation = e.Recommendation,
+					EvaluationDate = e.EvaluationDate
+				},
+				predicate: null,
+				page: page,
+				size: size);
+			return evaluations;
 		}
 	}
 }
