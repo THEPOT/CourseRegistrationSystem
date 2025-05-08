@@ -64,7 +64,7 @@ namespace CDQTSystem_API.Utils
                                                    System.Globalization.CultureInfo.InvariantCulture);
                 
                 // Check if expired
-                if (expiryDate < DateTime.UtcNow)
+                if (expiryDate < DateTime.UtcNow.AddHours(7))
                     return (false, Guid.Empty, Guid.Empty);
                 
                 return (true, userId, specificId);

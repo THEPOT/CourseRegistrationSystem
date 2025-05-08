@@ -152,6 +152,18 @@ CREATE TABLE [ClassSections] (
     CONSTRAINT [FK_ClassSections_Professors] FOREIGN KEY ([ProfessorId]) REFERENCES [Professors]([Id])
 );
 
+CREATE TABLE ClassSession (
+    Id UNIQUEIDENTIFIER PRIMARY KEY,
+    ClassSectionId UNIQUEIDENTIFIER NOT NULL,
+    Date DATE NOT NULL,
+    DayOfWeek NVARCHAR(20) NOT NULL,
+    StartTime TIME NOT NULL,
+    EndTime TIME NOT NULL,
+    Status NVARCHAR(20) NOT NULL, -- Normal, Cancelled, Rescheduled, MakeUp
+    Note NVARCHAR(255) NULL,
+    FOREIGN KEY (ClassSectionId) REFERENCES ClassSections(Id)
+);
+
 CREATE TABLE ClassSectionSchedules (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     ClassSectionID UNIQUEIDENTIFIER NOT NULL,

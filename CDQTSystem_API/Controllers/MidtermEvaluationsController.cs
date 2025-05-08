@@ -26,6 +26,14 @@ namespace CDQTSystem_API.Controllers
 			return CreatedAtAction(nameof(GetEvaluation), new { id = result.Id }, result);
 		}
 
+		[HttpGet]
+		[Authorize(Roles = "Professor,Staff")]
+		public async Task<IActionResult> GetEvaluations([FromQuery] int page, [FromQuery] int size)
+		{
+			var evaluations = await _midtermEvaluationService.GetMidtermEvaluations(page, size);
+			return Ok(evaluations);
+		}
+
 		[HttpGet("{id:guid}")]
 		[Authorize(Roles = "Professor,Student,Staff")]
 		public async Task<IActionResult> GetEvaluation(Guid id)

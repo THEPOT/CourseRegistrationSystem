@@ -21,6 +21,8 @@ public partial class CdqtsystemContext : DbContext
 
     public virtual DbSet<ClassSectionSchedule> ClassSectionSchedules { get; set; }
 
+    public virtual DbSet<ClassSession> ClassSessions { get; set; }
+
     public virtual DbSet<Classroom> Classrooms { get; set; }
 
     public virtual DbSet<Course> Courses { get; set; }
@@ -140,6 +142,23 @@ public partial class CdqtsystemContext : DbContext
                 .HasForeignKey(d => d.ClassSectionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__ClassSect__Class__1293BD5E");
+        });
+
+        modelBuilder.Entity<ClassSession>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__ClassSes__3214EC07BD1A3C04");
+
+            entity.ToTable("ClassSession");
+
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.DayOfWeek).HasMaxLength(20);
+            entity.Property(e => e.Note).HasMaxLength(255);
+            entity.Property(e => e.Status).HasMaxLength(20);
+
+            entity.HasOne(d => d.ClassSection).WithMany(p => p.ClassSessions)
+                .HasForeignKey(d => d.ClassSectionId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__ClassSess__Class__72E607DB");
         });
 
         modelBuilder.Entity<Classroom>(entity =>

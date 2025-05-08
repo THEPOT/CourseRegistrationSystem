@@ -1732,5 +1732,75 @@ namespace CDQTSystem_API.Services.Implements
                 .FirstOrDefault(r => r.ClassSection.CourseId == courseId)
                 ?.Grades.MaxBy(g => g.QualityPoints)?.QualityPoints;
         }
+
+		public async Task<List<StudentScheduleResponse>> GetStudentSchedule(Guid studentId, int? year , int? week )
+		{
+			// Lấy các đăng ký lớp của sinh viên
+			var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
+				.GetListAsync(
+					predicate: r => r.StudentId == studentId && r.Status != "Dropped",
+					include: q => q
+						.Include(r => r.ClassSection)
+							.ThenInclude(cs => cs.Course)
+						.Include(r => r.ClassSection)
+							.ThenInclude(cs => cs.Professor)
+								.ThenInclude(p => p.User)
+						.Include(r => r.ClassSection)
+							.ThenInclude(cs => cs.Classroom)
+						.Include(r => r.ClassSection)
+							.ThenInclude(cs => cs.ClassSessions)
+				);
+
+			// Lấy các buổi học thực tế từ ClassSession
+			var allSessions = registrations
+				.SelectMany(r => r.ClassSection.ClassSessions.Select(s => new { Registration = r, Session = s }))
+				.ToList();
+
+			// Nếu có week/year thì lọc theo tuần
+			if (week != null && year != null)
+			{
+				var (startOfWeek, endOfWeek) = GetDateRangeOfWeek(week.Value, year.Value);
+				_logger.LogInformation("Start of week: {StartOfWeek}, End of week: {EndOfWeek}", startOfWeek, endOfWeek);
+				allSessions = allSessions
+					.Where(x => x.Session.Date.ToDateTime(TimeOnly.MinValue) >= startOfWeek && x.Session.Date.ToDateTime(TimeOnly.MinValue) <= endOfWeek)
+					.ToList();
+			}
+
+			// Gom nhóm lại theo đăng ký lớp
+			var grouped = allSessions
+				.GroupBy(x => x.Registration)
+				.Select(g => new StudentScheduleResponse
+				{
+					CourseRegistrationId = g.Key.Id,
+					CourseOfferingId = g.Key.ClassSection.Id,
+					CourseCode = g.Key.ClassSection.Course.CourseCode,
+					CourseName = g.Key.ClassSection.Course.CourseName,
+					Credits = g.Key.ClassSection.Course.Credits,
+					ProfessorName = g.Key.ClassSection.Professor != null && g.Key.ClassSection.Professor.User != null ? g.Key.ClassSection.Professor.User.FullName : "N/A",
+					Classroom = g.Key.ClassSection.Classroom != null ? g.Key.ClassSection.Classroom.RoomName : "Online",
+					Status = g.Key.Status,
+					Schedule = g.Select(x => new ScheduleSlot
+					{
+						DayOfWeek = x.Session.DayOfWeek,
+						StartTime = x.Session.StartTime.ToString("hh\\:mm"),
+						EndTime = x.Session.EndTime.ToString("hh\\:mm")
+					}).ToList()
+				})
+				.Where(r => r.Schedule.Any())
+				.ToList();
+
+			return grouped;
+		}
+
+		public static (DateTime start, DateTime end) GetDateRangeOfWeek(int week, int year)
+		{
+			var jan1 = new DateTime(year, 1, 1);
+			int daysOffset = DayOfWeek.Monday - jan1.DayOfWeek;
+			var firstMonday = jan1.AddDays(daysOffset);
+			var startOfWeek = firstMonday.AddDays((week - 1) * 7);
+			// endOfWeek là 23:59:59 của ngày Chủ nhật
+			var endOfWeek = startOfWeek.AddDays(6).Date.AddDays(1).AddTicks(-1);
+			return (startOfWeek, endOfWeek);
+		}
 	}
 }

@@ -21,6 +21,8 @@ public partial class ClassSection
 
     public virtual ICollection<ClassSectionSchedule> ClassSectionSchedules { get; set; } = new List<ClassSectionSchedule>();
 
+    public virtual ICollection<ClassSession> ClassSessions { get; set; } = new List<ClassSession>();
+
     public virtual Classroom? Classroom { get; set; }
 
     public virtual Course Course { get; set; } = null!;

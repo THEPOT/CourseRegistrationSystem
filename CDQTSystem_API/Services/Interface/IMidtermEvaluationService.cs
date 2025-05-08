@@ -1,5 +1,6 @@
 ﻿using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
+using CDQTSystem_Domain.Paginate;
 
 namespace CDQTSystem_API.Services.Interface
 {
@@ -13,6 +14,7 @@ namespace CDQTSystem_API.Services.Interface
 		Task<MidtermEvaluationPeriodResponse> GetCurrentEvaluationPeriod();
 		Task<List<MidtermEvaluationSummaryResponse>> GetMidtermEvaluationSummary(Guid semesterId);
 		Task<byte[]> ExportMidtermEvaluations(Guid semesterId);
-		Task<MidtermEvaluationResponse> GetMidtermEvaluation(Guid evaluationId); // Add this missing method  
+		Task<MidtermEvaluationResponse> GetMidtermEvaluation(Guid evaluationId);
+		Task<IPaginate<MidtermEvaluationResponse>> GetMidtermEvaluations(int page, int size);
 	}
 }
