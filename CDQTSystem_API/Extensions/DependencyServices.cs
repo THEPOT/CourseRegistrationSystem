@@ -84,17 +84,21 @@ namespace CDQTSystem_API.Extensions
 			services.AddScoped<ICourseOfferingService, CourseOfferingService>();
 			services.AddScoped<ICourseRegistrationService, CourseRegistrationService>();
 			services.AddScoped<ICourseService, CourseService>();
+			services.AddScoped<IDepartmentService, DepartmentService>();
 			services.AddScoped<IDegreeAuditService, DegreeAuditService>();
+			services.AddScoped<IEvaluationQuestionService, EvaluationQuestionService>();
+			services.AddScoped<IGradesService, GradesService>();
+			services.AddScoped<IMajorService, MajorService>();
 			services.AddScoped<IMidtermEvaluationService, MidtermEvaluationService>();
+			services.AddScoped<IProfessorService, ProfessorService>();
 			services.AddScoped<IRegistrationPeriodService, RegistrationPeriodService>();
+			services.AddScoped<IScholarshipsService, ScholarshipsService>();
 			services.AddScoped<ISemesterService, SemesterService>();
 			services.AddScoped<IServiceRequestService, ServiceRequestService>();
 			services.AddScoped<IStudentsService, StudentsService>();
+			services.AddScoped<ITuitionService, TuitionService>();
 			services.AddScoped<IUsersService, UsersService>();
-			services.AddScoped<IProfessorService, ProfessorService>();
-			services.AddScoped<IDepartmentService, DepartmentService>();
-			services.AddScoped<IMidtermEvaluationService, MidtermEvaluationService>();
-			services.AddScoped<ICourseEvaluationService, CourseEvaluationService>();
+
 			return services;
 		}
 

@@ -23,9 +23,9 @@ namespace CDQTSystem_API.Controllers
 
 		[HttpGet]
 		[Authorize(Roles = "Admin,Staff")]
-		public async Task<ActionResult<List<ServiceRequestResponse>>> GetAllServiceRequests([FromQuery] string status = null)
+		public async Task<ActionResult<List<ServiceRequestResponse>>> GetAllServiceRequests([FromQuery] int page = 1, [FromQuery] int size = 10, [FromQuery] string status = null, [FromQuery] string search = null)
 		{
-			var requests = await _serviceRequestService.GetAllServiceRequests(status);
+			var requests = await _serviceRequestService.GetAllServiceRequests( status ,  page , size , search);
 			return Ok(requests);
 		}
 
@@ -103,6 +103,14 @@ namespace CDQTSystem_API.Controllers
 			{
 				return BadRequest(ex.Message);
 			}
+		}
+
+		[HttpGet("statistics")]
+		[Authorize(Roles = "Admin,Staff")]
+		public async Task<ActionResult<ServiceRequestStatisticsResponse>> GetStatistics()
+		{
+			var stats = await _serviceRequestService.GetStatistics();
+			return Ok(stats);
 		}
 	}
 }

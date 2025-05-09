@@ -37,6 +37,8 @@ namespace CDQTSystem_API.Services.Interface
 		Task<List<StudentInfoResponse>> GetStudentsByProgram(Guid programId);
 		Task<List<StudentInfoResponse>> GetStudentsByScholarship(string scholarshipName);
 		Task<StudentDetailedInfoResponse> GetStudentDetailedInformation(Guid studentId);
+		Task<byte[]> ExportStudentTranscript(Guid studentId, string format);
+		Task<byte[]> ExportAllTranscripts(string format);
 		Task<List<StudentScheduleResponse>> GetStudentSchedule(Guid studentId, int? week = null, int? year = null);
 	}
 }
