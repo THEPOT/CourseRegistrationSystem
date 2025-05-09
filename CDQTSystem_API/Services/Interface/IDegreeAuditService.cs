@@ -8,5 +8,10 @@ namespace CDQTSystem_API.Services.Interface
 		Task<DegreeAuditResponse> GetStudentDegreeAudit(Guid studentId);
 		Task<DegreeAuditResponse> UpdateStudentDegreeAudit(Guid studentId, DegreeAuditUpdateRequest request);
 		Task<byte[]> ExportDegreeAuditPdf(Guid studentId);
+		Task<ProgramRequirementsResponse> GetProgramRequirements(Guid programId);
+		Task<bool> UpdateProgramRequirements(Guid programId, ProgramRequirementsUpdateRequest request);
+		Task<BatchProgressResponse> GetBatchProgress(BatchProgressFilterRequest filter);
+		Task<StudentProgressResponse> GetStudentProgress(Guid studentId);
+		Task<byte[]> ExportAuditReport(AuditExportRequest filter);
 	}
 }

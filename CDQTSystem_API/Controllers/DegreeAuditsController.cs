@@ -65,5 +65,45 @@ namespace CDQTSystem_API.Controllers
 				return BadRequest(ex.Message);
 			}
 		}
+
+		[HttpGet("programs/{programId}/requirements")]
+		[Authorize(Roles = "Admin,Staff")]
+		public async Task<ActionResult<ProgramRequirementsResponse>> GetProgramRequirements(Guid programId)
+		{
+			var result = await _degreeAuditService.GetProgramRequirements(programId);
+			return Ok(result);
+		}
+
+		[HttpPut("programs/{programId}/requirements")]
+		[Authorize(Roles = "Admin,Staff")]
+		public async Task<ActionResult> UpdateProgramRequirements(Guid programId, [FromBody] ProgramRequirementsUpdateRequest request)
+		{
+			var result = await _degreeAuditService.UpdateProgramRequirements(programId, request);
+			return Ok(result);
+		}
+
+		[HttpGet("batch-progress")]
+		[Authorize(Roles = "Admin,Staff")]
+		public async Task<ActionResult<BatchProgressResponse>> GetBatchProgress([FromQuery] BatchProgressFilterRequest filter)
+		{
+			var result = await _degreeAuditService.GetBatchProgress(filter);
+			return Ok(result);
+		}
+
+		[HttpGet("students/{studentId}/progress")]
+		[Authorize(Roles = "Student,Staff,Admin")]
+		public async Task<ActionResult<StudentProgressResponse>> GetStudentProgress(Guid studentId)
+		{
+			var result = await _degreeAuditService.GetStudentProgress(studentId);
+			return Ok(result);
+		}
+
+		[HttpGet("export")]
+		[Authorize(Roles = "Admin,Staff")]
+		public async Task<IActionResult> ExportAuditReport([FromQuery] AuditExportRequest filter)
+		{
+			var fileBytes = await _degreeAuditService.ExportAuditReport(filter);
+			return File(fileBytes, "application/pdf", "audit-report.pdf");
+		}
 	}
 }

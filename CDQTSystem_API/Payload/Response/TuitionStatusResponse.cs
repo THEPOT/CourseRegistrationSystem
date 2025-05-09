@@ -10,8 +10,11 @@ namespace CDQTSystem_API.Payload.Response
         public decimal PaidAmount { get; set; }
         public decimal RemainingAmount { get; set; }
         public string PaymentStatus { get; set; }  // Unpaid, Partial, Paid
-        public DateOnly DueDate { get; set; }
+        public DateTime? DueDate { get; set; }
         public DateOnly? LastPaymentDate { get; set; }
+        public Guid TuitionId { get; set; }
+        public Guid SemesterId { get; set; }
+        public decimal AmountPaid { get; set; }
         
         public List<TuitionItemDetail> Items { get; set; } = new List<TuitionItemDetail>();
         public List<PaymentTransaction> Transactions { get; set; } = new List<PaymentTransaction>();

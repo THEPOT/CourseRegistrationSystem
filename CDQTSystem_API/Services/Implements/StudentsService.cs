@@ -1802,5 +1802,45 @@ namespace CDQTSystem_API.Services.Implements
 			var endOfWeek = startOfWeek.AddDays(6).Date.AddDays(1).AddTicks(-1);
 			return (startOfWeek, endOfWeek);
 		}
+
+		public async Task<byte[]> ExportStudentTranscript(Guid studentId, string format)
+		{
+			var transcript = await GetStudentTranscript(studentId);
+			if (transcript == null)
+				throw new BadHttpRequestException("Student not found");
+
+			// Giả lập xuất file: thực tế nên dùng thư viện như EPPlus (Excel) hoặc iTextSharp (PDF)
+			if (format == "excel")
+			{
+				// TODO: Tạo file Excel từ transcript
+				return GenerateExcelTranscript(transcript);
+			}
+			else
+			{
+				// TODO: Tạo file PDF từ transcript
+				return GeneratePdfTranscript(transcript);
+			}
+		}
+
+		public async Task<byte[]> ExportAllTranscripts(string format)
+		{
+			var transcripts = await GetAllStudentTranscripts();
+			if (format == "excel")
+			{
+				// TODO: Tạo file Excel từ danh sách transcripts
+				return GenerateExcelTranscripts(transcripts);
+			}
+			else
+			{
+				// TODO: Tạo file PDF từ danh sách transcripts
+				return GeneratePdfTranscripts(transcripts);
+			}
+		}
+
+		// Dummy methods for illustration
+		private byte[] GenerateExcelTranscript(StudentTranscriptResponse transcript) => new byte[0];
+		private byte[] GeneratePdfTranscript(StudentTranscriptResponse transcript) => new byte[0];
+		private byte[] GenerateExcelTranscripts(List<StudentTranscriptResponse> transcripts) => new byte[0];
+		private byte[] GeneratePdfTranscripts(List<StudentTranscriptResponse> transcripts) => new byte[0];
 	}
 }

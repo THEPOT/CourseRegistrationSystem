@@ -4,6 +4,7 @@ using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
 using CDQTSystem_API.Services.Interface;
 using CDQTSystem_Domain.Entities;
+using CDQTSystem_Domain.Paginate;
 using CDQTSystem_Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -21,32 +22,31 @@ namespace CDQTSystem_API.Services.Implements
 		{
 		}
 
-		public async Task<List<ServiceRequestResponse>> GetAllServiceRequests(string status = null)
+		public async Task<IPaginate<ServiceRequestResponse>> GetAllServiceRequests(string status = null, int page = 1, int size = 10, string search = null)
 		{
-			var requests = await _unitOfWork.GetRepository<ServiceRequest>().GetListAsync(
-				include: q => q.Include(sr => sr.Student)
-							  .ThenInclude(s => s.User)
+
+			var requests = await _unitOfWork.GetRepository<ServiceRequest>().GetPagingListAsync(
+				selector: sr => new ServiceRequestResponse
+				{
+					Id = sr.Id,
+					StudentId = sr.StudentId,
+					StudentName = sr.Student.User.FullName,
+					Mssv = sr.Student.User.UserCode,
+					ServiceType = sr.ServiceType,
+					RequestDate = sr.RequestDate,
+					Status = sr.Status,
+					Details = sr.Details,
+					StaffComments = sr.Details // Same as above
+				},
+				predicate: sr => (string.IsNullOrEmpty(status) || sr.Status == status)
+					&& (string.IsNullOrEmpty(search) || sr.Student.User.FullName.Contains(search) || sr.Student.User.UserCode.Contains(search)),
+				include: q => q.Include(sr => sr.Student).ThenInclude(s => s.User),
+				page: page,
+				size: size
 			);
 
-
-
-			if (!string.IsNullOrEmpty(status))
-			{
-				requests = requests.Where(sr => sr.Status == status).ToList();
-			}
-
-			return requests.Select(sr => new ServiceRequestResponse
-			{
-				Id = sr.Id,
-				StudentId = sr.StudentId,
-				StudentName = sr.Student.User.FullName,
-				Mssv = sr.Student.User.UserCode,
-				ServiceType = sr.ServiceType,
-				RequestDate = sr.RequestDate,
-				Status = sr.Status,
-				Details = sr.Details,
-				StaffComments = sr.Details // You might want to add a StaffComments field to your entity
-			}).ToList();
+			// Map sang response
+			return requests;
 		}
 
 		public async Task<List<ServiceRequestResponse>> GetStudentServiceRequests(Guid studentId, string status = null)
@@ -236,6 +236,24 @@ namespace CDQTSystem_API.Services.Implements
 				_logger.LogError(ex, "Error deleting service request: {Message}", ex.Message);
 				throw;
 			}
+		}
+		public async Task<ServiceRequestStatisticsResponse> GetStatistics()
+		{
+			var repo = _unitOfWork.GetRepository<ServiceRequest>();
+			var all = await repo.GetListAsync();
+			var byType = all.GroupBy(r => r.ServiceType)
+				.Select(g => new ServiceRequestTypeStat { Type = g.Key, Count = g.Count() }).ToList();
+			var byStatus = all.GroupBy(r => r.Status)
+				.Select(g => new ServiceRequestStatusStat { Status = g.Key, Count = g.Count() }).ToList();
+			return new ServiceRequestStatisticsResponse
+			{
+				Total = all.Count,
+				Processed = all.Count(r => r.Status == "Processed"),
+				Pending = all.Count(r => r.Status == "Pending"),
+				Rejected = all.Count(r => r.Status == "Rejected"),
+				ByType = byType,
+				ByStatus = byStatus
+			};
 		}
 	}
 }

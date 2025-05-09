@@ -12,6 +12,7 @@ namespace CDQTSystem_API.Payload.Response
         public decimal TotalExpectedAmount { get; set; }
         public decimal TotalCollectedAmount { get; set; }
         public decimal CollectionRate { get; set; }  // Percentage
+        public decimal TotalAmount { get; set; }
 
         // Payment Status Breakdown
         public PaymentStatusBreakdown StatusBreakdown { get; set; }
@@ -24,7 +25,10 @@ namespace CDQTSystem_API.Payload.Response
         
         // Outstanding Payments
         public List<OutstandingPayment> OutstandingPayments { get; set; } = new List<OutstandingPayment>();
+
+        public List<TuitionStudentSummary> Students { get; set; } = new();
     }
+
 
     public class PaymentStatusBreakdown
     {
@@ -54,5 +58,15 @@ namespace CDQTSystem_API.Payload.Response
         public decimal RemainingAmount { get; set; }
         public DateOnly DueDate { get; set; }
         public int DaysOverdue { get; set; }
+    }
+
+    public class TuitionStudentSummary
+    {
+        public Guid StudentId { get; set; }
+        public string StudentName { get; set; }
+        public string Mssv { get; set; }
+        public decimal AmountPaid { get; set; }
+        public string PaymentStatus { get; set; }
+        public decimal TotalAmount { get; set; }
     }
 }
