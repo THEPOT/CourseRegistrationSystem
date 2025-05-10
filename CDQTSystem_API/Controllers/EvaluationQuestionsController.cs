@@ -20,7 +20,7 @@ namespace CDQTSystem_API.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,Staff")]
+        [Authorize(Roles = "Admin,Staff,Student")]
         public async Task<ActionResult<List<EvaluationQuestionResponse>>> GetAll()
         {
             var result = await _service.GetAllQuestions();
@@ -28,8 +28,8 @@ namespace CDQTSystem_API.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin,Staff")]
-        public async Task<ActionResult<EvaluationQuestionResponse>> GetById(Guid id)
+		[Authorize(Roles = "Admin,Staff,Student")]
+		public async Task<ActionResult<EvaluationQuestionResponse>> GetById(Guid id)
         {
             var result = await _service.GetQuestionById(id);
             if (result == null) return NotFound();
@@ -37,7 +37,7 @@ namespace CDQTSystem_API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Staff")]
+                
         public async Task<ActionResult<EvaluationQuestionResponse>> Create([FromBody] EvaluationQuestionRequest request)
         {
             var result = await _service.CreateQuestion(request);
@@ -45,7 +45,7 @@ namespace CDQTSystem_API.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin,Staff")]
+        [Authorize(Roles = "Admin,Staff,Student")]
         public async Task<ActionResult<EvaluationQuestionResponse>> Update(Guid id, [FromBody] EvaluationQuestionRequest request)
         {
             var result = await _service.UpdateQuestion(id, request);
@@ -54,7 +54,7 @@ namespace CDQTSystem_API.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin,Staff")]
+        [Authorize(Roles = "Admin,Staff,Student")]
         public async Task<ActionResult> Delete(Guid id)
         {
             var success = await _service.DeleteQuestion(id);

@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Json;
 
 namespace CDQTSystem_API.Services.Implements
 {
@@ -75,8 +76,8 @@ namespace CDQTSystem_API.Services.Implements
 
 			// Calculate GPA
 			var totalQualityPoints = completedRegistrations
-				.Sum(registration => 
-					registration.Grades.Sum(grade => 
+				.Sum(registration =>
+					registration.Grades.Sum(grade =>
 						grade.QualityPoints * registration.ClassSection.Course.Credits
 					)
 				);
@@ -230,32 +231,192 @@ namespace CDQTSystem_API.Services.Implements
 
 		public async Task<ProgramRequirementsResponse> GetProgramRequirements(Guid programId)
 		{
-			// TODO: Implement logic
-			return new ProgramRequirementsResponse();
+			var major = await _unitOfWork.GetRepository<Major>()
+				.SingleOrDefaultAsync(
+					selector: m => new ProgramRequirementsResponse
+					{
+						ProgramId = m.Id,
+						MajorName = m.MajorName,
+						RequiredCredits = m.RequiredCredits,
+						Requirements = m.Courses.Select(c => new RequiredCoursesResponse
+						{
+							CourseId = c.Id,
+							CourseCode = c.CourseCode,
+							CourseName = c.CourseName,
+							Credits = c.Credits
+						}).ToList()
+					},
+					predicate: m => m.Id == programId,
+					include: q => q.Include(m => m.Courses)
+				);
+			return major;
 		}
+
 
 		public async Task<bool> UpdateProgramRequirements(Guid programId, ProgramRequirementsUpdateRequest request)
 		{
-			// TODO: Implement logic
+			// Update the major's required credits and courses
+			var major = await _unitOfWork.GetRepository<Major>()
+				.SingleOrDefaultAsync(
+					predicate: m => m.Id == programId,
+					include: q => q.Include(m => m.Courses)
+				);
+			if (major == null)
+				return false;
+
+			major.RequiredCredits = request.RequiredCredits;
+
+			// Update required courses (replace all)
+			major.Courses.Clear();
+			if (request.Requirements != null && request.Requirements.Any())
+			{
+				var courseRepo = _unitOfWork.GetRepository<Course>();
+				foreach (var courseDto in request.Requirements)
+				{
+					var course = await courseRepo.SingleOrDefaultAsync(predicate: c => c.Id == courseDto.CourseId);
+					if (course != null)
+						major.Courses.Add(course);
+				}
+			}
+
+			await _unitOfWork.CommitAsync();
 			return true;
 		}
 
 		public async Task<BatchProgressResponse> GetBatchProgress(BatchProgressFilterRequest filter)
 		{
-			// TODO: Implement logic
-			return new BatchProgressResponse();
+			// Find the semester by year and term
+			var semester = await _unitOfWork.GetRepository<Semester>()
+				.SingleOrDefaultAsync(predicate: s => s.AcademicYear == filter.Year.ToString() && s.SemesterName == filter.Term);
+			if (semester == null)
+				return new BatchProgressResponse { ProgressJson = "{}" };
+
+			// Find the major by program code
+			var major = await _unitOfWork.GetRepository<Major>()
+				.SingleOrDefaultAsync(predicate: m => m.MajorName == filter.ProgramCode);
+			if (major == null)
+				return new BatchProgressResponse { ProgressJson = "{}" };
+
+			// Get all students in the major
+			var students = await _unitOfWork.GetRepository<Student>()
+				.GetListAsync(predicate: s => s.MajorId == major.Id);
+
+			// For each student, calculate completed credits and GPA for the semester
+			var studentProgress = new List<object>();
+			foreach (var student in students)
+			{
+				var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
+					.GetListAsync(predicate: r => r.StudentId == student.Id && r.ClassSection.SemesterId == semester.Id,
+						include: q => q.Include(r => r.ClassSection).ThenInclude(cs => cs.Course).Include(r => r.Grades));
+
+				var completedCredits = registrations
+					.Where(r => r.Grades.Any(g => g.QualityPoints >= 1.0m))
+					.Sum(r => r.ClassSection.Course.Credits);
+
+				var totalQualityPoints = registrations
+					.SelectMany(r => r.Grades)
+					.Sum(g => g.QualityPoints * (g.CourseRegistration.ClassSection.Course.Credits));
+				var totalCredits = registrations.Sum(r => r.ClassSection.Course.Credits);
+				var gpa = totalCredits > 0 ? (double)totalQualityPoints / totalCredits : 0.0;
+
+				studentProgress.Add(new
+				{
+					StudentId = student.Id,
+					StudentName = student.User.FullName,
+					CompletedCredits = completedCredits,
+					GPA = Math.Round(gpa, 2)
+				});
+			}
+
+			var result = new
+			{
+				ProgramId = major.Id,
+				ProgramName = major.MajorName,
+				Semester = semester.SemesterName,
+				Year = semester.AcademicYear,
+				StudentProgress = studentProgress
+			};
+
+			return new BatchProgressResponse
+			{
+				ProgressJson = JsonSerializer.Serialize(result)
+			};
 		}
 
-		public async Task<StudentProgressResponse> GetStudentProgress(Guid studentId)
+		public async Task<StudentProgressResponse> GetStudentProgress(Guid userId)
 		{
-			// TODO: Implement logic
-			return new StudentProgressResponse();
+			var student = await _unitOfWork.GetRepository<Student>()
+				.SingleOrDefaultAsync(
+					predicate: s => s.UserId == userId,
+					include: q => q.Include(s => s.Major).Include(s => s.User)
+				);
+
+			if (student == null || student.User == null || student.Major == null)
+				return null;
+
+			var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
+				.GetListAsync(predicate: r => r.StudentId == student.Id,
+					include: q => q.Include(r => r.ClassSection).ThenInclude(cs => cs.Course).Include(r => r.Grades));
+
+			var completedRegistrations = registrations.Where(r => r.Grades.Any(g => g.QualityPoints >= 1.0m)).ToList();
+			var completedCredits = completedRegistrations.Sum(r => r.ClassSection.Course.Credits);
+			var requiredCredits = student.Major.RequiredCredits;
+
+			var totalQualityPoints = completedRegistrations
+				.SelectMany(r => r.Grades)
+				.Sum(g => g.QualityPoints * (g.CourseRegistration.ClassSection.Course.Credits));
+			var totalCredits = completedRegistrations.Sum(r => r.ClassSection.Course.Credits);
+			var gpa = totalCredits > 0 ? (double)totalQualityPoints / totalCredits : 0.0;
+
+			var admissionYear = student.EnrollmentDate.Year;
+			var expectedGraduationYear = admissionYear + 4;
+
+			var requiredCourses = student.Major.Courses.ToList();
+			var courseMap = registrations.ToDictionary(r => r.ClassSection.CourseId, r => r);
+
+			var category = new CategoryDto
+			{
+				Name = "Required Courses",
+				Completed = completedRegistrations.Sum(r => r.ClassSection.Course.Credits),
+				Required = requiredCourses.Sum(c => c.Credits),
+				Courses = requiredCourses.Select(c => {
+					var reg = courseMap.ContainsKey(c.Id) ? courseMap[c.Id] : null;
+					var grade = reg?.Grades.FirstOrDefault();
+					string status = reg == null ? "not-registered" : (grade != null && grade.QualityPoints >= 1.0m ? "completed" : "in-progress");
+					return new CourseDto
+					{
+						Code = c.CourseCode,
+						Name = c.CourseName,
+						Credits = c.Credits,
+						Status = status,
+						Grade = grade?.GradeValue
+					};
+				}).ToList()
+			};
+
+			return new StudentProgressResponse
+			{
+				Student = new StudentInfoDto
+				{
+					Name = student.User.FullName,
+					Id = student.Id,
+					Program = student.Major.MajorName,
+					AdmissionYear = admissionYear,
+					ExpectedGraduation = expectedGraduationYear,
+					TotalCredits = completedCredits,
+					RequiredCredits = requiredCredits,
+					Gpa = Math.Round(gpa, 2)
+				},
+				Categories = new List<CategoryDto> { category }
+			};
 		}
 
 		public async Task<byte[]> ExportAuditReport(AuditExportRequest filter)
 		{
-			// TODO: Implement logic
-			return new byte[0];
+			// TODO: Implement logic to generate and export audit report as PDF or other format
+			// For now, return a placeholder byte array
+			return new byte[] { 1, 2, 3, 4, 5 };
 		}
 	}
+
 }

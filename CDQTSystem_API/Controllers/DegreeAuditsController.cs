@@ -4,6 +4,7 @@ using CDQTSystem_API.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace CDQTSystem_API.Controllers
@@ -66,19 +67,19 @@ namespace CDQTSystem_API.Controllers
 			}
 		}
 
-		[HttpGet("programs/{programId}/requirements")]
+		[HttpGet("programs/{majorId}/requirements")]
 		[Authorize(Roles = "Admin,Staff")]
-		public async Task<ActionResult<ProgramRequirementsResponse>> GetProgramRequirements(Guid programId)
+		public async Task<ActionResult<ProgramRequirementsResponse>> GetProgramRequirements(Guid majorId)
 		{
-			var result = await _degreeAuditService.GetProgramRequirements(programId);
+			var result = await _degreeAuditService.GetProgramRequirements(majorId);
 			return Ok(result);
 		}
 
-		[HttpPut("programs/{programId}/requirements")]
+		[HttpPut("programs/{majorId}/requirements")]
 		[Authorize(Roles = "Admin,Staff")]
-		public async Task<ActionResult> UpdateProgramRequirements(Guid programId, [FromBody] ProgramRequirementsUpdateRequest request)
+		public async Task<ActionResult> UpdateProgramRequirements(Guid majorId, [FromBody] ProgramRequirementsUpdateRequest request)
 		{
-			var result = await _degreeAuditService.UpdateProgramRequirements(programId, request);
+			var result = await _degreeAuditService.UpdateProgramRequirements(majorId, request);
 			return Ok(result);
 		}
 
@@ -90,11 +91,12 @@ namespace CDQTSystem_API.Controllers
 			return Ok(result);
 		}
 
-		[HttpGet("students/{studentId}/progress")]
-		[Authorize(Roles = "Student,Staff,Admin")]
-		public async Task<ActionResult<StudentProgressResponse>> GetStudentProgress(Guid studentId)
+		[HttpGet("students/progress")]
+		[Authorize(Roles = "Student")]
+		public async Task<ActionResult<StudentProgressResponse>> GetStudentProgress()
 		{
-			var result = await _degreeAuditService.GetStudentProgress(studentId);
+			var userId = Guid.Parse(User.FindFirst("UserId")?.Value);
+			var result = await _degreeAuditService.GetStudentProgress(userId);
 			return Ok(result);
 		}
 

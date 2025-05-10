@@ -11,7 +11,7 @@ namespace CDQTSystem_API.Services.Interface
 		Task<ProgramRequirementsResponse> GetProgramRequirements(Guid programId);
 		Task<bool> UpdateProgramRequirements(Guid programId, ProgramRequirementsUpdateRequest request);
 		Task<BatchProgressResponse> GetBatchProgress(BatchProgressFilterRequest filter);
-		Task<StudentProgressResponse> GetStudentProgress(Guid studentId);
+		Task<StudentProgressResponse> GetStudentProgress(Guid userId);
 		Task<byte[]> ExportAuditReport(AuditExportRequest filter);
 	}
 }

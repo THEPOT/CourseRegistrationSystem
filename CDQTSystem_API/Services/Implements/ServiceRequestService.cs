@@ -49,33 +49,29 @@ namespace CDQTSystem_API.Services.Implements
 			return requests;
 		}
 
-		public async Task<List<ServiceRequestResponse>> GetStudentServiceRequests(Guid studentId, string status = null)
+		public async Task<IPaginate<ServiceRequestResponse>> GetStudentServiceRequests(Guid userId, int page, int size )
 		{
-			var query = _unitOfWork.GetRepository<ServiceRequest>().GetListAsync(
-				predicate: sr => sr.StudentId == studentId,
+			var student = await _unitOfWork.GetRepository<Student>()
+				.SingleOrDefaultAsync(predicate: s => s.UserId == userId);
+			var responses = await _unitOfWork.GetRepository<ServiceRequest>().GetPagingListAsync(
+				selector: sr => new ServiceRequestResponse
+				{
+					Id = sr.Id,
+					StudentId = sr.StudentId,
+					StudentName = sr.Student.User.FullName,
+					Mssv = sr.Student.User.UserCode,
+					ServiceType = sr.ServiceType,
+					RequestDate = sr.RequestDate,
+					Status = sr.Status,
+					Details = sr.Details,
+					StaffComments = sr.Details // Same as above
+				},
+				predicate: sr => sr.StudentId == student.Id,
 				include: q => q.Include(sr => sr.Student)
 							  .ThenInclude(s => s.User)
 			);
 
-			var requests = await query;
-
-			if (!string.IsNullOrEmpty(status))
-			{
-				requests = requests.Where(sr => sr.Status == status).ToList();
-			}
-
-			return requests.Select(sr => new ServiceRequestResponse
-			{
-				Id = sr.Id,
-				StudentId = sr.StudentId,
-				StudentName = sr.Student.User.FullName,
-				Mssv = sr.Student.User.UserCode,
-				ServiceType = sr.ServiceType,
-				RequestDate = sr.RequestDate,
-				Status = sr.Status,
-				Details = sr.Details,
-				StaffComments = sr.Details // Same as above
-			}).ToList();
+			return responses;
 		}
 
 		public async Task<ServiceRequestResponse> GetServiceRequestById(Guid id)

@@ -9,7 +9,7 @@ namespace CDQTSystem_API.Services.Interface
 		Task<MidtermEvaluationResponse> CreateMidtermEvaluation(CreateMidtermEvaluationRequest request);
 		Task<MidtermEvaluationResponse> UpdateMidtermEvaluation(Guid evaluationId, UpdateMidtermEvaluationRequest request);
 		Task<List<MidtermEvaluationResponse>> GetMidtermEvaluationsByProfessor(Guid professorId, Guid semesterId);
-		Task<List<MidtermEvaluationResponse>> GetStudentMidtermEvaluations(Guid studentId, Guid? semesterId = null);
+		Task<List<MidtermEvaluationResponse>> GetStudentMidtermEvaluations(Guid userId, Guid? semesterId = null);
 		Task<MidtermEvaluationPeriodResponse> CreateOrUpdateEvaluationPeriod(MidtermEvaluationPeriodRequest request);
 		Task<MidtermEvaluationPeriodResponse> GetCurrentEvaluationPeriod();
 		Task<List<MidtermEvaluationSummaryResponse>> GetMidtermEvaluationSummary(Guid semesterId);

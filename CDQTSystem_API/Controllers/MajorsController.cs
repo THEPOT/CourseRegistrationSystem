@@ -21,11 +21,11 @@ namespace CDQTSystem_API.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Admin,Staff")]
-        public async Task<ActionResult<List<MajorResponse>>> GetAll()
-        {
-            var majors = await _majorService.GetAllMajors();
-            return Ok(majors);
-        }
+        public async Task<ActionResult<List<MajorResponse>>> GetAll([FromQuery] int page = 1, [FromQuery] int size = 10, [FromQuery] string? search = null)
+		{
+			var majors = await _majorService.GetAllMajors(page, size, search);
+			return Ok(majors);
+		}
 
         [HttpGet("{id}")]
         [Authorize(Roles = "Admin,Staff")]

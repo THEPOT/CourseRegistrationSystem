@@ -167,9 +167,37 @@ namespace CDQTSystem_API.Services.Implements
 			throw new NotImplementedException();
 		}
 
-		public Task<List<MidtermEvaluationResponse>> GetStudentMidtermEvaluations(Guid studentId, Guid? semesterId = null)
+		public async Task<List<MidtermEvaluationResponse>> GetStudentMidtermEvaluations(Guid userId, Guid? semesterId = null)
 		{
-			throw new NotImplementedException();
+			var student = await _unitOfWork.GetRepository<Student>()
+				.SingleOrDefaultAsync(predicate: s => s.UserId == userId);
+
+			if (student == null)
+				throw new BadHttpRequestException("Student not found");
+
+			var responses = await _unitOfWork.GetRepository<MidtermEvaluation>()
+				.GetListAsync(
+				selector: e => new MidtermEvaluationResponse
+				{
+					Id = e.Id,
+					StudentId = e.StudentId,
+					ProfessorId = e.ProfessorId,
+					CourseId = e.CourseId,
+					ClassSectionId = e.ClassSectionId,
+					SemesterId = e.SemesterId,
+					Comments = e.Comments,
+					Recommendation = e.Recommendation,
+					EvaluationDate = e.EvaluationDate
+				},
+				predicate: e => e.StudentId == student.Id &&
+								(semesterId == null || e.SemesterId == semesterId),
+				include: q => q
+					.Include(e => e.Professor)
+					.Include(e => e.Course)
+					.Include(e => e.ClassSection)
+					.Include(e => e.Semester));
+
+			return responses.ToList();
 		}
 
 		public Task<MidtermEvaluationPeriodResponse> CreateOrUpdateEvaluationPeriod(MidtermEvaluationPeriodRequest request)
