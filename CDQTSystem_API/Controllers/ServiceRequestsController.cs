@@ -22,19 +22,19 @@ namespace CDQTSystem_API.Controllers
 		}
 
 		[HttpGet]
-		[Authorize(Roles = "Admin,Staff")]
+		[Authorize(Roles = "Admin,Staff,Student")]
 		public async Task<ActionResult<List<ServiceRequestResponse>>> GetAllServiceRequests([FromQuery] int page = 1, [FromQuery] int size = 10, [FromQuery] string status = null, [FromQuery] string search = null)
 		{
 			var requests = await _serviceRequestService.GetAllServiceRequests( status ,  page , size , search);
 			return Ok(requests);
 		}
 
-		[HttpGet("student/{studentId}")]
+		[HttpGet("student")]
 		[Authorize(Roles = "Student,Staff,Professor")]
-		public async Task<ActionResult<List<ServiceRequestResponse>>> GetStudentServiceRequests(
-			Guid studentId, [FromQuery] string status = null)
+		public async Task<ActionResult<List<ServiceRequestResponse>>> GetStudentServiceRequests([FromQuery] int page = 1, [FromQuery] int size = 10)
 		{
-			var requests = await _serviceRequestService.GetStudentServiceRequests(studentId, status);
+			var userId = Guid.Parse(User.FindFirst("UserId")?.Value);
+			var requests = await _serviceRequestService.GetStudentServiceRequests(userId, page, size);
 			return Ok(requests);
 		}
 

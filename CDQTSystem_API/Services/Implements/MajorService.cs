@@ -2,6 +2,7 @@ using CDQTSystem_API.Payload.Request;
 using CDQTSystem_API.Payload.Response;
 using CDQTSystem_API.Services.Interface;
 using CDQTSystem_Domain.Entities;
+using CDQTSystem_Domain.Paginate;
 using CDQTSystem_Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -19,15 +20,20 @@ namespace CDQTSystem_API.Services.Implements
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<List<MajorResponse>> GetAllMajors()
+        public async Task<IPaginate<MajorResponse>> GetAllMajors(int page, int size, string? search)
         {
-            var majors = await _unitOfWork.GetRepository<Major>().GetListAsync();
-            return majors.Select(m => new MajorResponse
-            {
-                Id = m.Id,
-                MajorName = m.MajorName,
-                RequiredCredits = m.RequiredCredits
-            }).ToList();
+            var majors = await _unitOfWork.GetRepository<Major>().GetPagingListAsync(
+                selector: x => new MajorResponse
+				{
+					Id = x.Id,
+					MajorName = x.MajorName,
+					RequiredCredits = x.RequiredCredits
+				},
+				predicate: x => string.IsNullOrEmpty(search) || x.MajorName.Contains(search),
+				page: page,
+				size: size
+				);
+            return majors;
         }
 
         public async Task<MajorResponse> GetMajorById(Guid id)

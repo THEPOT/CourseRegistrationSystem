@@ -63,7 +63,7 @@ namespace CDQTSystem_API.Controllers
 		}
 
 		[HttpGet("period/current")]
-		[Authorize(Roles = "Admin")]
+		[Authorize(Roles = "Admin,Student")]
 		public async Task<IActionResult> GetCurrentPeriod()
 		{
 			var period = await _courseEvaluationService.GetCurrentEvaluationPeriod();

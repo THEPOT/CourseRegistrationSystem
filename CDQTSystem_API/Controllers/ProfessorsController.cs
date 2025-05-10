@@ -30,5 +30,21 @@ namespace CDQTSystem_API.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpGet("schedule")]
+        [Authorize(Roles = "Professor,Staff,Admin")]
+        public async Task<ActionResult<List<ProfessorScheduleResponse>>> GetProfessorSchedule([FromQuery] int? year = null, [FromQuery] int? week = null)
+        {
+            try
+            {
+                var userId = Guid.Parse(User.FindFirst("UserId")?.Value);
+                var schedule = await _professorService.GetProfessorSchedule(userId, year, week);
+                return Ok(schedule);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

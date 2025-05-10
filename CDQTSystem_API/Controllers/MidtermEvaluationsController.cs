@@ -60,11 +60,12 @@ namespace CDQTSystem_API.Controllers
 			return Ok(evaluations);
 		}
 
-		[HttpGet("student/{studentId:guid}")]
+		[HttpGet("student")]
 		[Authorize(Roles = "Student,Staff")]
-		public async Task<IActionResult> GetStudentEvaluations(Guid studentId, [FromQuery] Guid? semesterId = null)
+		public async Task<IActionResult> GetStudentEvaluations([FromQuery] Guid? semesterId = null)
 		{
-			var evaluations = await _midtermEvaluationService.GetStudentMidtermEvaluations(studentId, semesterId);
+			var userId = Guid.Parse(User.FindFirst("UserId")?.Value);
+			var evaluations = await _midtermEvaluationService.GetStudentMidtermEvaluations(userId, semesterId);
 			return Ok(evaluations);
 		}
 

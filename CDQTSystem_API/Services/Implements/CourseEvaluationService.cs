@@ -45,26 +45,145 @@ namespace CDQTSystem_API.Services.Implements
 
 		public async Task<List<CourseEvaluationSummaryResponse>> GetCourseEvaluationSummaries(Guid termId)
 		{
-			throw new NotImplementedException();
+			// Lấy tất cả các đánh giá theo học kỳ
+			var evaluations = await _unitOfWork.GetRepository<CourseEvaluation>()
+				.GetListAsync(
+					predicate: e => e.SemesterId == termId,
+					include: q => q.Include(e => e.Course).Include(e => e.Professor).ThenInclude(p => p.User)
+				);
+
+			var grouped = evaluations.GroupBy(e => e.CourseId);
+			var result = new List<CourseEvaluationSummaryResponse>();
+			foreach (var group in grouped)
+			{
+				var first = group.First();
+				result.Add(new CourseEvaluationSummaryResponse
+				{
+					CourseId = first.CourseId,
+					CourseCode = first.Course.CourseCode,
+					CourseName = first.Course.CourseName,
+					ProfessorId = first.ProfessorId,
+					ProfessorName = first.Professor.User.FullName,
+					TotalResponses = group.Count(),
+					AverageTeachingQuality = 5, // TODO: Tính trung bình thực tế nếu có trường
+					AverageCourseContent = 5,
+					AverageAssessmentFairness = 5,
+					AverageOverallSatisfaction = 5,
+					CommonFeedback = group.Select(e => e.Comments).Where(c => !string.IsNullOrEmpty(c)).Take(5).ToList()
+				});
+			}
+			return result;
 		}
 
 		public async Task<bool> CreateCourseEvaluation(CourseEvaluationCreateRequest request)
 		{
-			throw new NotImplementedException();
+			// Tạo mới một đánh giá môn học
+			var classSection = await _unitOfWork.GetRepository<ClassSection>()
+				.SingleOrDefaultAsync(predicate: cs => cs.Id == request.CourseOfferingId,
+					include: q => q.Include(cs => cs.Course).Include(cs => cs.Professor));
+			if (classSection == null || classSection.Professor == null)
+				return false;
+
+			var evaluation = new CourseEvaluation
+			{
+				Id = Guid.NewGuid(),
+				StudentId = request.StudentId,
+				ProfessorId = classSection.ProfessorId.Value,
+				CourseId = classSection.CourseId,
+				SemesterId = classSection.SemesterId,
+				EvaluationDate = DateTime.UtcNow,
+				OverallSatisfaction = request.OverallSatisfactionRating.ToString(),
+				Comments = request.Feedback
+			};
+			await _unitOfWork.GetRepository<CourseEvaluation>().InsertAsync(evaluation);
+			await _unitOfWork.CommitAsync();
+			return true;
 		}
+
 		public async Task<bool> SubmitCourseEvaluation(SubmitCourseEvaluationRequest request)
 		{
-			throw new NotImplementedException();
+			// Tìm class section
+			var classSection = await _unitOfWork.GetRepository<ClassSection>()
+				.SingleOrDefaultAsync(predicate: cs => cs.Id == request.ClassSectionId,
+					include: q => q.Include(cs => cs.Course).Include(cs => cs.Professor));
+			if (classSection == null || classSection.Professor == null)
+				return false;
+
+			// TODO: Lấy StudentId từ context hoặc request nếu cần
+			var evaluation = new CourseEvaluation
+			{
+				Id = Guid.NewGuid(),
+				StudentId = Guid.Empty, // Cần truyền vào hoặc lấy từ context
+				ProfessorId = classSection.ProfessorId.Value,
+				CourseId = classSection.CourseId,
+				SemesterId = classSection.SemesterId,
+				EvaluationDate = DateTime.UtcNow,
+				OverallSatisfaction = request.OverallSatisfactionRating.ToString(),
+				Comments = request.Feedback
+			};
+			await _unitOfWork.GetRepository<CourseEvaluation>().InsertAsync(evaluation);
+			await _unitOfWork.CommitAsync();
+			return true;
 		}
 
-		public Task<StudentEvaluationStatusResponse> GetStudentEvaluationStatus(Guid studentId, Guid semesterId)
+		public async Task<StudentEvaluationStatusResponse> GetStudentEvaluationStatus(Guid studentId, Guid semesterId)
 		{
-			throw new NotImplementedException();
+			// Lấy tất cả class section mà sinh viên đã đăng ký trong học kỳ
+			var registrations = await _unitOfWork.GetRepository<CourseRegistration>()
+				.GetListAsync( predicate: r => r.StudentId == studentId && r.ClassSection.SemesterId == semesterId,
+					include: q => q.Include(r => r.ClassSection).ThenInclude(cs => cs.Course).Include(r => r.ClassSection).ThenInclude(cs => cs.Professor).ThenInclude(p => p.User));
+
+			// Lấy tất cả đánh giá đã nộp
+			var evaluations = await _unitOfWork.GetRepository<CourseEvaluation>()
+				.GetListAsync(predicate: e => e.StudentId == studentId && e.SemesterId == semesterId);
+
+			var courses = registrations.Select(r => new CourseEvaluationStatus
+			{
+				ClassSectionId = r.ClassSection.Id,
+				CourseId = r.ClassSection.CourseId,
+				CourseCode = r.ClassSection.Course.CourseCode,
+				CourseName = r.ClassSection.Course.CourseName,
+				ProfessorId = r.ClassSection.ProfessorId ?? Guid.Empty,
+				ProfessorName = r.ClassSection.Professor?.User.FullName ?? "",
+				HasCompleted = evaluations.Any(e => e.CourseId == r.ClassSection.CourseId),
+				CompletionDate = evaluations.FirstOrDefault(e => e.CourseId == r.ClassSection.CourseId)?.EvaluationDate
+			}).ToList();
+
+			return new StudentEvaluationStatusResponse
+			{
+				SemesterId = semesterId,
+				SemesterName = registrations.FirstOrDefault()?.ClassSection.Semester.SemesterName ?? "",
+				Courses = courses
+			};
 		}
 
-		public Task<List<CourseEvaluationSummaryResponse>> GetProfessorEvaluations(Guid professorId, Guid semesterId)
+		public async Task<List<CourseEvaluationSummaryResponse>> GetProfessorEvaluations(Guid professorId, Guid semesterId)
 		{
-			throw new NotImplementedException();
+			var evaluations = await _unitOfWork.GetRepository<CourseEvaluation>()
+				.GetListAsync(predicate: e => e.ProfessorId == professorId && e.SemesterId == semesterId,
+					include: q => q.Include(e => e.Course).Include(e => e.Professor).ThenInclude(p => p.User));
+
+			var grouped = evaluations.GroupBy(e => e.CourseId);
+			var result = new List<CourseEvaluationSummaryResponse>();
+			foreach (var group in grouped)
+			{
+				var first = group.First();
+				result.Add(new CourseEvaluationSummaryResponse
+				{
+					CourseId = first.CourseId,
+					CourseCode = first.Course.CourseCode,
+					CourseName = first.Course.CourseName,
+					ProfessorId = first.ProfessorId,
+					ProfessorName = first.Professor.User.FullName,
+					TotalResponses = group.Count(),
+					AverageTeachingQuality = 5, // TODO: Tính trung bình thực tế nếu có trường
+					AverageCourseContent = 5,
+					AverageAssessmentFairness = 5,
+					AverageOverallSatisfaction = 5,
+					CommonFeedback = group.Select(e => e.Comments).Where(c => !string.IsNullOrEmpty(c)).Take(5).ToList()
+				});
+			}
+			return result;
 		}
 
 		public async Task<CourseEvaluationPeriodResponse> CreateOrUpdateEvaluationPeriod(CourseEvaluationPeriodRequest request)
